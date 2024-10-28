@@ -1,0 +1,61 @@
+
+
+
+	     	     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	     	     !!                                                             !!
+	     	     !!                   !! FCIS says HELLO !!                     !!
+	     	     !!                                                             !!
+	     	     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+
+********************************************************************
+* INITIALIZATIONS:
+*=================
+* 1) CPU...[DONE]
+* 2) MEMORY:
+*	     Physical memory: 32768K available, base = 640K, extended = 31744K
+*	     Max Envs = 8, Nearest Pow of 2 = 8
+*	     check_boot_pgdir() succeeded!
+* 3) USER ENVs...[DONE]
+* 4) PROGRAMMABLE INTERRUPT CONTROLLER:
+*	     PIC is initialized
+*	     IRQ0 (Clock): is Enabled
+*	     IRQ1 (Keyboard): is Enabled
+*	     IRQ4 (COM1): is Enabled
+* 5) SCHEDULER & MULTI-TASKING:
+*	     RR scheduler with initial clock = 11897
+* 6) ESP to SCHED KERN STACK:
+*	     old SP = f017cfd0 - updated SP = efbfffd0
+********************************************************************
+
+Welcome to the FOS kernel command prompt!
+Type 'help' for a list of commands.
+FOS> tst dynalloc allocff
+=======================================================
+FIRST: Tests depend on the Allocate Function ONLY [40%]
+=======================================================
+TRAP frame at 0xefbfed44
+  edi  0x0000ffde
+  esi  0x00010074
+  ebp  0xefbfeda8
+  oesp 0xefbfed64
+  ebx  0x00010074
+  edx  0xf6000008
+  ecx  0xf00b8fa0
+  eax  0x00000000
+  es   0x----0010
+  ds   0x----0010
+  trap 0x0000000e Page Fault - 14
+  err  0x00000002
+  eip  0xf0122c18
+  cs   0x----0008
+  flag 0x00010086
+  esp  0x20000000
+  ss   0x----0000
+
+kernel [EVAL_FINAL]panic at kern/trap/fault_handler.c:132: faulted env == NULL!
+esp = efbfec60
+FOS> 
