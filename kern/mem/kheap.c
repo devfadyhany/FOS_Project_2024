@@ -14,7 +14,21 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
 	// Write your code here, remove the panic and write your code
-	panic("initialize_kheap_dynamic_allocator() is not implemented yet...!!");
+	//panic("initialize_kheap_dynamic_allocator() is not implemented yet...!!");
+	if( (daStart + initSizeToAllocate) > daLimit){
+			panic("there is not enough memory space");
+		}
+
+	Start = (uint32*) daStart;
+	Break = (uint32*) ( daStart + initSizeToAllocate);
+	Hard_limit = (uint32*) daLimit;
+	for(uint32 i=daStart;i<(uint32)Break;i+=PAGE_SIZE){
+		create_page_table(ptr_page_directory , i);
+	}
+
+	initialize_dynamic_allocator( daStart , initSizeToAllocate);
+	return 0;
+
 }
 
 void* sbrk(int numOfPages)
