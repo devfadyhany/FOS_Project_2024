@@ -23,7 +23,9 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	Break = (uint32*) ( daStart + initSizeToAllocate);
 	Hard_limit = (uint32*) daLimit;
 	for(uint32 i=daStart;i<(uint32)Break;i+=PAGE_SIZE){
-		create_page_table(ptr_page_directory , i);
+		struct FrameInfo * frame_info = NULL;
+		allocate_frame(&frame_info);
+		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
 	}
 
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
