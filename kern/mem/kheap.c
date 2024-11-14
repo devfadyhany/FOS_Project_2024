@@ -114,13 +114,9 @@ void* kmalloc(unsigned int size)
 	}else {
 		if (isKHeapPlacementStrategyFIRSTFIT() == 1){
 			// allocate on page boundaries using first fit strategy
-			int num_of_required_pages = (size + PAGE_SIZE - 1)/PAGE_SIZE;
+			int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 			int continious_page_counter = 0;
 			uint32 start_page = 0;
-
-			if (size > KERNEL_HEAP_MAX - (uint32)Hard_limit - PAGE_SIZE){
-				return NULL;
-			}
 
 			for (uint32 i = (uint32)Hard_limit + PAGE_SIZE; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
 				if (continious_page_counter == num_of_required_pages){
@@ -141,6 +137,10 @@ void* kmalloc(unsigned int size)
 				}
 			}
 
+			if (continious_page_counter != num_of_required_pages){
+				return NULL;
+			}
+
 			int counter = 0;
 			struct FrameInfo * iterator;
 			LIST_FOREACH(iterator, &MemFrameLists.free_frame_list){
@@ -150,7 +150,7 @@ void* kmalloc(unsigned int size)
 
 				allocate_frame(&iterator);
 				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
-				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE | PERM_USER);
+				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
 
 				counter++;
 			}
