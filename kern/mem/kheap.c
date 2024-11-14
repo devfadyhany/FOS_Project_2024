@@ -187,9 +187,9 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 		return 0;
 	}
 
-	uint32 page_entry = ptr_page_table[PTX(virtual_address)];
-	uint32 offset = (virtual_address << 20);
-	uint32 physical_address = (page_entry << 12) | offset;
+	uint32 page_entry = ptr_page_table[PTX(virtual_address)] & ~0xFFF;
+	uint32 offset = (virtual_address & 0xFFF);
+	uint32 physical_address = page_entry + offset;
 
 	return physical_address;
 	//return the physical address corresponding to given virtual_address
