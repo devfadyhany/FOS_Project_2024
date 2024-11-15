@@ -168,12 +168,72 @@ void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT'24.MS2 - #04] [1] KERNEL HEAP - kfree
 	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
+	if (virtual_address == NULL) {
+		panic("kfree() received NULL address!");
+		return;
+	}
 
+    uint32* va = (uint32*)(virtual_address) &(uint32*)~ (0x2fffff);
+
+	int num_of_pages = 0;
+	uint32* page_table = NULL;
+	struct FrameInfo* first_frame = get_frame_info(ptr_page_directory, (uint32) va, &page_table);
+	cprintf("hello before loop\n");
+	for (uint32 i = (uint32)va; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
+//		cprintf("hello guys1\n");
+		struct FrameInfo* current_frame = get_frame_info(ptr_page_directory, i, &page_table);
+//		cprintf("hello guys2\n");
+
+		cprintf("first_frame : %d", first_frame->proc->env_id);
+		if(current_frame != NULL && current_frame->proc != NULL){
+			cprintf("current_frame : %d \n", current_frame->proc->env_id);
+			if(first_frame->proc->env_id != current_frame->proc->env_id){
+				cprintf("hello guys3\n");
+				break;
+
+			}
+
+		}
+		num_of_pages++;
+	}
+	cprintf("number of pages ya regala: %d \n",num_of_pages);
+//    uint32 size;
+//    cprintf("va: %x", va);
+//    cprintf("hello %d", size);
+
+
+//	if (size == 0) {
+//		panic("kfree() received an invalid address!");
+//		return;
+//	}
+//     Check if the address is within the [PAGE ALLOCATOR] range
+    if (va < (uint32 *)KERNEL_HEAP_MAX && va >= Hard_limit + PAGE_SIZE) {
+
+        uint32 address = (uint32)virtual_address;
+        for (int i = 0; i < num_of_pages; i++) {
+			uint32* ptr_page_table = NULL;
+
+            struct FrameInfo* frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
+            if (frame != NULL) {
+                unmap_frame(ptr_page_directory, address);
+                free_frame(frame);
+                tlb_invalidate(ptr_page_directory, (void*) address); // Refresh the TLB
+            }
+            address += PAGE_SIZE;
+        }
+
+    } else if (va < Hard_limit && va >= (uint32 *)KERNEL_HEAP_START) {
+        free_block(virtual_address);
+    }
+    else {
+//         Invalid address, should panic
+        panic("kfree() received an invalid address outside allocator ranges!");
+    }
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
 
 }
+
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
 {
