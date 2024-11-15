@@ -10,6 +10,13 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
+
+typedef struct {
+    uint32 virtual_address;
+    int is_mapped;
+} FrameEntry;
+FrameEntry frame_table[1048576]; // 1048576 = 4GB (ram_size) / 4KB (page_size) = number of frames in ram
+
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
@@ -28,6 +35,11 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
 	}
 
+	for (int i = 0; i < 1048576; i++) {
+	        frame_table[i].virtual_address = 0;
+	        frame_table[i].is_mapped = 0;
+	}
+	
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
 	return 0;
 
@@ -152,6 +164,12 @@ void* kmalloc(unsigned int size)
 				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
 				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
 
+				uint32 physical_address = to_physical_address(iterator);
+
+				int frame_index = physical_address/PAGE_SIZE;
+				frame_table[frame_index].virtual_address = current_page_address;
+				frame_table[frame_index].is_mapped = 1;
+				
 				counter++;
 			}
 
@@ -204,19 +222,11 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	// Write your code here, remove the panic and write your code
 	//panic("kheap_virtual_address() is not implemented yet...!!");
 	uint32 offset = physical_address % PAGE_SIZE;
-	int frame_number = physical_address/PAGE_SIZE;
+	int frame_index = physical_address/PAGE_SIZE;
 
-	for (int i = 0; i < 1024; i++){
-		if (ptr_page_directory[i] & PERM_PRESENT){
-			uint32* ptr_page_table = (uint32*)ptr_page_directory[i];
-
-			for (int j = 0; j < 1024; j++){
-				if ((ptr_page_table[j] >> 12) == frame_number * PAGE_SIZE){
-					uint32 virtual_address = (i << 22) | (j << 12) | offset;
-					return virtual_address;
-				}
-			}
-		}
+	if (frame_table[frame_index].is_mapped == 1){
+		uint32 virtual_address = frame_table[frame_index].virtual_address | offset;
+		return virtual_address;
 	}
 
 	return 0;
