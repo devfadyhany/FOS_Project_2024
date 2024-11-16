@@ -258,11 +258,16 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 		return 0;
 	}
 
-	uint32 page_entry = ptr_page_table[PTX(virtual_address)] & ~0xFFF;
-	uint32 offset = (virtual_address & 0xFFF);
-	uint32 physical_address = page_entry + offset;
+	if ((ptr_page_table[PTX(virtual_address)] & PERM_PRESENT) == PERM_PRESENT){
+		uint32 page_entry = ptr_page_table[PTX(virtual_address)] & ~0xFFF;
 
-	return physical_address;
+		uint32 offset = (virtual_address & 0xFFF);
+		uint32 physical_address = page_entry + offset;
+
+		return physical_address;
+	}
+
+	return 0;
 	//return the physical address corresponding to given virtual_address
 	//refer to the project presentation and documentation for details
 
