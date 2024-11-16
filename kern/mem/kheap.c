@@ -10,6 +10,21 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
+typedef struct {
+    uint32 virtual_address;
+    int is_mapped;
+} FrameEntry;
+FrameEntry frame_table[1048576]; // 1048576 = 4GB (ram_size) / 4KB (page_size) = number of frames in ram
+
+typedef struct{
+	LIST_ENTRY(allocatedProcess) prev_next_info;
+	uint32 start_page;
+	int num_of_pages;
+}allocatedProcess;
+allocatedProcess allocatedProcessList[1048576];
+
+int num_of_allocated_processes = 0;
+
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
@@ -26,6 +41,13 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
 		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+	}
+
+	for (int i = 0; i < 1048576; i++) {
+	        frame_table[i].virtual_address = 0;
+	        frame_table[i].is_mapped = 0;
+	        allocatedProcessList[i].start_page = 0;
+	        allocatedProcessList[i].num_of_pages = 0;
 	}
 
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
@@ -152,9 +174,19 @@ void* kmalloc(unsigned int size)
 				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
 				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
 
+				uint32 physical_address = to_physical_address(iterator);
+
+				int frame_index = physical_address/PAGE_SIZE;
+				frame_table[frame_index].virtual_address = current_page_address;
+				frame_table[frame_index].is_mapped = 1;
+				
 				counter++;
 			}
 
+			allocatedProcessList[num_of_allocated_processes].start_page = start_page;
+			allocatedProcessList[num_of_allocated_processes].num_of_pages = num_of_required_pages;
+			num_of_allocated_processes++;
+			
 			return (void*)start_page;
 
 		}else if (isKHeapPlacementStrategyBESTFIT() == 1){
@@ -173,57 +205,37 @@ void kfree(void* virtual_address)
 		return;
 	}
 
-    uint32* va = (uint32*)(virtual_address) &(uint32*)~ (0x2fffff);
+	uint32* va = (uint32*)virtual_address;
 
-	int num_of_pages = 0;
-	uint32* page_table = NULL;
-	struct FrameInfo* first_frame = get_frame_info(ptr_page_directory, (uint32) va, &page_table);
-	cprintf("hello before loop\n");
-	for (uint32 i = (uint32)va; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
-//		cprintf("hello guys1\n");
-		struct FrameInfo* current_frame = get_frame_info(ptr_page_directory, i, &page_table);
-//		cprintf("hello guys2\n");
+    if (va >= (uint32*)KERNEL_HEAP_START && va <= Hard_limit){
+    	 free_block(virtual_address);
+    }
+    else if (va >= (uint32*)((uint32)Hard_limit + PAGE_SIZE) && va <= (uint32*)KERNEL_HEAP_MAX) {
 
-		cprintf("first_frame : %d", first_frame->proc->env_id);
-		if(current_frame != NULL && current_frame->proc != NULL){
-			cprintf("current_frame : %d \n", current_frame->proc->env_id);
-			if(first_frame->proc->env_id != current_frame->proc->env_id){
-				cprintf("hello guys3\n");
-				break;
+    	int num_of_pages = 0;
 
-			}
+        struct allocatedProcess* iterator;
 
-		}
-		num_of_pages++;
-	}
-	cprintf("number of pages ya regala: %d \n",num_of_pages);
-//    uint32 size;
-//    cprintf("va: %x", va);
-//    cprintf("hello %d", size);
-
-
-//	if (size == 0) {
-//		panic("kfree() received an invalid address!");
-//		return;
-//	}
-//     Check if the address is within the [PAGE ALLOCATOR] range
-    if (va < (uint32 *)KERNEL_HEAP_MAX && va >= Hard_limit + PAGE_SIZE) {
+        for (int i = 0; i < num_of_allocated_processes; i++){
+        	if (allocatedProcessList[i].start_page == (uint32)va){
+        		num_of_pages = allocatedProcessList[i].num_of_pages;
+        		allocatedProcessList[i].start_page = 0;
+        		allocatedProcessList[i].num_of_pages = 0;
+        		break;
+        	}
+        }
 
         uint32 address = (uint32)virtual_address;
         for (int i = 0; i < num_of_pages; i++) {
 			uint32* ptr_page_table = NULL;
-
             struct FrameInfo* frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
+
             if (frame != NULL) {
                 unmap_frame(ptr_page_directory, address);
-                free_frame(frame);
                 tlb_invalidate(ptr_page_directory, (void*) address); // Refresh the TLB
             }
             address += PAGE_SIZE;
         }
-
-    } else if (va < Hard_limit && va >= (uint32 *)KERNEL_HEAP_START) {
-        free_block(virtual_address);
     }
     else {
 //         Invalid address, should panic
@@ -231,7 +243,6 @@ void kfree(void* virtual_address)
     }
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
-
 }
 
 
