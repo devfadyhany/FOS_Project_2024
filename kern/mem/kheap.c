@@ -275,19 +275,11 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	// Write your code here, remove the panic and write your code
 	//panic("kheap_virtual_address() is not implemented yet...!!");
 	uint32 offset = physical_address % PAGE_SIZE;
-	int frame_number = physical_address/PAGE_SIZE;
+	int frame_index = physical_address/PAGE_SIZE;
 
-	for (int i = 0; i < 1024; i++){
-		if (ptr_page_directory[i] & PERM_PRESENT){
-			uint32* ptr_page_table = (uint32*)ptr_page_directory[i];
-
-			for (int j = 0; j < 1024; j++){
-				if ((ptr_page_table[j] >> 12) == frame_number * PAGE_SIZE){
-					uint32 virtual_address = (i << 22) | (j << 12) | offset;
-					return virtual_address;
-				}
-			}
-		}
+	if (frame_table[frame_index].is_mapped == 1){
+		uint32 virtual_address = frame_table[frame_index].virtual_address | offset;
+		return virtual_address;
 	}
 
 	return 0;
