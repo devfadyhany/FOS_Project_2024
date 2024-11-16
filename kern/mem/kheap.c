@@ -10,12 +10,20 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
-
 typedef struct {
     uint32 virtual_address;
     int is_mapped;
 } FrameEntry;
 FrameEntry frame_table[1048576]; // 1048576 = 4GB (ram_size) / 4KB (page_size) = number of frames in ram
+
+typedef struct{
+	LIST_ENTRY(allocatedProcess) prev_next_info;
+	uint32 start_page;
+	int num_of_pages;
+}allocatedProcess;
+allocatedProcess allocatedProcessList[1048576];
+
+int num_of_allocated_processes = 0;
 
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
@@ -38,8 +46,10 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	for (int i = 0; i < 1048576; i++) {
 	        frame_table[i].virtual_address = 0;
 	        frame_table[i].is_mapped = 0;
+	        allocatedProcessList[i].start_page = 0;
+	        allocatedProcessList[i].num_of_pages = 0;
 	}
-	
+
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
 	return 0;
 
@@ -173,6 +183,10 @@ void* kmalloc(unsigned int size)
 				counter++;
 			}
 
+			allocatedProcessList[num_of_allocated_processes].start_page = start_page;
+			allocatedProcessList[num_of_allocated_processes].num_of_pages = num_of_required_pages;
+			num_of_allocated_processes++;
+			
 			return (void*)start_page;
 
 		}else if (isKHeapPlacementStrategyBESTFIT() == 1){
@@ -186,12 +200,51 @@ void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT'24.MS2 - #04] [1] KERNEL HEAP - kfree
 	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
+	if (virtual_address == NULL) {
+		panic("kfree() received NULL address!");
+		return;
+	}
 
+	uint32* va = (uint32*)virtual_address;
+
+    if (va >= (uint32*)KERNEL_HEAP_START && va <= Hard_limit){
+    	 free_block(virtual_address);
+    }
+    else if (va >= (uint32*)((uint32)Hard_limit + PAGE_SIZE) && va <= (uint32*)KERNEL_HEAP_MAX) {
+
+    	int num_of_pages = 0;
+
+        struct allocatedProcess* iterator;
+
+        for (int i = 0; i < num_of_allocated_processes; i++){
+        	if (allocatedProcessList[i].start_page == (uint32)va){
+        		num_of_pages = allocatedProcessList[i].num_of_pages;
+        		allocatedProcessList[i].start_page = 0;
+        		allocatedProcessList[i].num_of_pages = 0;
+        		break;
+        	}
+        }
+
+        uint32 address = (uint32)virtual_address;
+        for (int i = 0; i < num_of_pages; i++) {
+			uint32* ptr_page_table = NULL;
+            struct FrameInfo* frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
+
+            if (frame != NULL) {
+                unmap_frame(ptr_page_directory, address);
+                tlb_invalidate(ptr_page_directory, (void*) address); // Refresh the TLB
+            }
+            address += PAGE_SIZE;
+        }
+    }
+    else {
+//         Invalid address, should panic
+        panic("kfree() received an invalid address outside allocator ranges!");
+    }
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
-
 }
+
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
 {
