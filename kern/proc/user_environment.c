@@ -912,6 +912,14 @@ void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 da
 	//	1) there's no initial allocations for the dynamic allocator of the user heap (=0)
 	//	2) call the initialize_dynamic_allocator(..) to complete the initialization
 	//panic("initialize_uheap_dynamic_allocator() is not implemented yet...!!");
+	if((daStart ) >= daLimit){
+		panic("error!!... (start must not be greater than limit)");
+	}
+	uint32 size=0;
+	e->Start=(uint32 *)daStart;
+	e->Hard_limit=(uint32 *)daLimit;
+	e->Break=(uint32 *)(daStart+size);
+	initialize_dynamic_allocator( daStart , size);
 }
 
 //==============================================================

@@ -10,21 +10,6 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
-typedef struct {
-    uint32 virtual_address;
-    int is_mapped;
-} FrameEntry;
-FrameEntry frame_table[1048576]; // 1048576 = 4GB (ram_size) / 4KB (page_size) = number of frames in ram
-
-typedef struct{
-	LIST_ENTRY(allocatedProcess) prev_next_info;
-	uint32 start_page;
-	int num_of_pages;
-}allocatedProcess;
-allocatedProcess allocatedProcessList[1048576];
-
-int num_of_allocated_processes = 0;
-
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
@@ -41,13 +26,6 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
 		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
-	}
-
-	for (int i = 0; i < 1048576; i++) {
-	        frame_table[i].virtual_address = 0;
-	        frame_table[i].is_mapped = 0;
-	        allocatedProcessList[i].start_page = 0;
-	        allocatedProcessList[i].num_of_pages = 0;
 	}
 
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
@@ -174,19 +152,13 @@ void* kmalloc(unsigned int size)
 				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
 				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
 
-				uint32 physical_address = to_physical_address(iterator);
+				iterator->mapped_page = current_page_address;
+				iterator->process_start_page = start_page;
+				iterator->process_num_of_pages = num_of_required_pages;
 
-				int frame_index = physical_address/PAGE_SIZE;
-				frame_table[frame_index].virtual_address = current_page_address;
-				frame_table[frame_index].is_mapped = 1;
-				
 				counter++;
 			}
 
-			allocatedProcessList[num_of_allocated_processes].start_page = start_page;
-			allocatedProcessList[num_of_allocated_processes].num_of_pages = num_of_required_pages;
-			num_of_allocated_processes++;
-			
 			return (void*)start_page;
 
 		}else if (isKHeapPlacementStrategyBESTFIT() == 1){
@@ -212,18 +184,10 @@ void kfree(void* virtual_address)
     }
     else if (va >= (uint32*)((uint32)Hard_limit + PAGE_SIZE) && va <= (uint32*)KERNEL_HEAP_MAX) {
 
-    	int num_of_pages = 0;
+    	uint32 physical_address = kheap_physical_address((uint32)va);
+    	struct FrameInfo* frame = to_frame_info(physical_address);
 
-        struct allocatedProcess* iterator;
-
-        for (int i = 0; i < num_of_allocated_processes; i++){
-        	if (allocatedProcessList[i].start_page == (uint32)va){
-        		num_of_pages = allocatedProcessList[i].num_of_pages;
-        		allocatedProcessList[i].start_page = 0;
-        		allocatedProcessList[i].num_of_pages = 0;
-        		break;
-        	}
-        }
+    	int num_of_pages = frame->process_num_of_pages;
 
         uint32 address = (uint32)virtual_address;
         for (int i = 0; i < num_of_pages; i++) {
@@ -232,6 +196,11 @@ void kfree(void* virtual_address)
 
             if (frame != NULL) {
                 unmap_frame(ptr_page_directory, address);
+
+                frame->mapped_page = 0;
+                frame->process_start_page = 0;
+                frame->process_num_of_pages = 0;
+
                 tlb_invalidate(ptr_page_directory, (void*) address); // Refresh the TLB
             }
             address += PAGE_SIZE;
@@ -258,11 +227,16 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 		return 0;
 	}
 
-	uint32 page_entry = ptr_page_table[PTX(virtual_address)] & ~0xFFF;
-	uint32 offset = (virtual_address & 0xFFF);
-	uint32 physical_address = page_entry + offset;
+	if ((ptr_page_table[PTX(virtual_address)] & PERM_PRESENT) == PERM_PRESENT){
+		uint32 page_entry = ptr_page_table[PTX(virtual_address)] & ~0xFFF;
 
-	return physical_address;
+		uint32 offset = (virtual_address & 0xFFF);
+		uint32 physical_address = page_entry + offset;
+
+		return physical_address;
+	}
+
+	return 0;
 	//return the physical address corresponding to given virtual_address
 	//refer to the project presentation and documentation for details
 
@@ -275,14 +249,28 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	// Write your code here, remove the panic and write your code
 	//panic("kheap_virtual_address() is not implemented yet...!!");
 	uint32 offset = physical_address % PAGE_SIZE;
-	int frame_index = physical_address/PAGE_SIZE;
+	struct FrameInfo* frame = to_frame_info(physical_address);
 
-	if (frame_table[frame_index].is_mapped == 1){
-		uint32 virtual_address = frame_table[frame_index].virtual_address | offset;
+	if (frame->mapped_page != 0){
+		uint32 virtual_address = frame->mapped_page | offset;
 		return virtual_address;
 	}
 
-	return 0;
+	uint32 remain_result = 0xFFFF000 - (physical_address & 0xFFFF000);
+
+	uint32 virtual_address = KERNEL_HEAP_START + offset + (uint32)(remain_result/ 0x000401);
+
+	uint32 returnedPA = kheap_physical_address(virtual_address);
+	if (returnedPA == 0){
+		return 0;
+	}
+
+	if (returnedPA != physical_address){
+		return 0;
+	}
+
+	return virtual_address;
+
 	//return the virtual address corresponding to given physical_address
 	//refer to the project presentation and documentation for details
 
