@@ -867,8 +867,16 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 #if USE_KHEAP
 	//TODO: [PROJECT'24.MS2 - #07] [2] FAULT HANDLER I - create_user_kern_stack
 	// Write your code here, remove the panic and write your code
-	panic("create_user_kern_stack() is not implemented yet...!!");
+	//panic("create_user_kern_stack() is not implemented yet...!!");
+	uint32* ptr_stack = (uint32*)kmalloc(KERNEL_STACK_SIZE);
 
+	if (ptr_stack == NULL){
+		panic("Failed to create user kernel stack!");
+	}
+
+	pt_set_page_permissions(ptr_user_page_directory, (uint32)ptr_stack, 0, PERM_PRESENT);
+
+	return ptr_stack;
 	//allocate space for the user kernel stack.
 	//remember to leave its bottom page as a GUARD PAGE (i.e. not mapped)
 	//return a pointer to the start of the allocated space (including the GUARD PAGE)
