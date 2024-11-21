@@ -21,7 +21,7 @@ inline struct WorkingSetElement* env_page_ws_list_create_element(struct Env* e, 
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
 	//panic("env_page_ws_list_create_element is not implemented yet");
 	//Your Code is Here...
-	struct WorkingSetElement* wsElement = (struct WorkingSetElement*)kmalloc(sizeof(struct WorkingSetElement));
+	struct WorkingSetElement* wsElement = kmalloc(sizeof(struct WorkingSetElement));
 
 	if (wsElement == NULL){
 		panic("Failed to allocate working_set_element");
