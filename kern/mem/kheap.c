@@ -26,6 +26,8 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
 		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+
+		frame_info->mapped_page = i;
 	}
 
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
@@ -87,6 +89,7 @@ void* sbrk(int numOfPages)
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
                 	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+				   		frame_info->mapped_page = i;
                 	   }
                 	   else
                 	   {
@@ -256,20 +259,7 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 		return virtual_address;
 	}
 
-	uint32 remain_result = 0xFFFF000 - (physical_address & 0xFFFF000);
-
-	uint32 virtual_address = KERNEL_HEAP_START + offset + (uint32)(remain_result/ 0x000401);
-
-	uint32 returnedPA = kheap_physical_address(virtual_address);
-	if (returnedPA == 0){
-		return 0;
-	}
-
-	if (returnedPA != physical_address){
-		return 0;
-	}
-
-	return virtual_address;
+	return 0;
 
 	//return the virtual address corresponding to given physical_address
 	//refer to the project presentation and documentation for details
@@ -293,6 +283,51 @@ void *krealloc(void *virtual_address, uint32 new_size)
 {
 	//TODO: [PROJECT'24.MS2 - BONUS#1] [1] KERNEL HEAP - krealloc
 	// Write your code here, remove the panic and write your code
+	//return NULL;
+	//panic("krealloc() is not implemented yet...!!");
+	if (virtual_address == NULL){
+		return kmalloc(new_size);
+	}
+
+	if (new_size == 0){
+		kfree(virtual_address);
+		return NULL;
+	}
+
+	int blockAllocator_address = ((uint32*)virtual_address >= Start && (uint32*)virtual_address < Break);
+	int blockAllocator_size = (new_size <= DYN_ALLOC_MAX_BLOCK_SIZE);
+
+	if (blockAllocator_address){
+		if (blockAllocator_size){
+			uint32* new_address = (uint32*)realloc_block_FF(virtual_address ,new_size);
+			return new_address;
+		}else {
+			uint32* new_address = (uint32*)kmalloc(new_size);
+			if (new_address != NULL){
+				uint32 size = get_block_size(virtual_address);
+				memcpy(new_address, virtual_address, size - (2 *sizeof(int)));
+				kfree(virtual_address);
+			}
+			return new_address;
+		}
+	}else {
+		if (blockAllocator_size){
+			uint32* new_address = (uint32*)alloc_block_FF(new_size);
+
+			if (new_address != NULL){
+				kfree(virtual_address);
+			}
+			return new_address;
+		}else {
+			uint32* new_address = (uint32*)kmalloc(new_size);
+			if (new_address != NULL){
+				uint32* ptr_page_table = NULL;
+				struct FrameInfo* frame = get_frame_info(ptr_page_directory, (uint32)virtual_address, &ptr_page_table);
+				memcpy(new_address, virtual_address, frame->process_num_of_pages * PAGE_SIZE);
+				kfree(virtual_address);
+			}
+			return new_address;
+		}
+	}
 	return NULL;
-	panic("krealloc() is not implemented yet...!!");
 }
