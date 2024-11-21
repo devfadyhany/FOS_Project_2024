@@ -10,21 +10,6 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
-typedef struct {
-    uint32 virtual_address;
-    int is_mapped;
-} FrameEntry;
-FrameEntry frame_table[1048576]; // 1048576 = 4GB (ram_size) / 4KB (page_size) = number of frames in ram
-
-typedef struct{
-	LIST_ENTRY(allocatedProcess) prev_next_info;
-	uint32 start_page;
-	int num_of_pages;
-}allocatedProcess;
-allocatedProcess allocatedProcessList[1048576];
-
-int num_of_allocated_processes = 0;
-
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
@@ -41,13 +26,8 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
 		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
-	}
 
-	for (int i = 0; i < 1048576; i++) {
-	        frame_table[i].virtual_address = 0;
-	        frame_table[i].is_mapped = 0;
-	        allocatedProcessList[i].start_page = 0;
-	        allocatedProcessList[i].num_of_pages = 0;
+		frame_info->mapped_page = i;
 	}
 
 	initialize_dynamic_allocator( daStart , initSizeToAllocate);
@@ -109,6 +89,7 @@ void* sbrk(int numOfPages)
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
                 	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+				   		frame_info->mapped_page = i;
                 	   }
                 	   else
                 	   {
@@ -174,19 +155,13 @@ void* kmalloc(unsigned int size)
 				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
 				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
 
-				uint32 physical_address = to_physical_address(iterator);
+				iterator->mapped_page = current_page_address;
+				iterator->process_start_page = start_page;
+				iterator->process_num_of_pages = num_of_required_pages;
 
-				int frame_index = physical_address/PAGE_SIZE;
-				frame_table[frame_index].virtual_address = current_page_address;
-				frame_table[frame_index].is_mapped = 1;
-				
 				counter++;
 			}
 
-			allocatedProcessList[num_of_allocated_processes].start_page = start_page;
-			allocatedProcessList[num_of_allocated_processes].num_of_pages = num_of_required_pages;
-			num_of_allocated_processes++;
-			
 			return (void*)start_page;
 
 		}else if (isKHeapPlacementStrategyBESTFIT() == 1){
@@ -212,18 +187,10 @@ void kfree(void* virtual_address)
     }
     else if (va >= (uint32*)((uint32)Hard_limit + PAGE_SIZE) && va <= (uint32*)KERNEL_HEAP_MAX) {
 
-    	int num_of_pages = 0;
+    	uint32 physical_address = kheap_physical_address((uint32)va);
+    	struct FrameInfo* frame = to_frame_info(physical_address);
 
-        struct allocatedProcess* iterator;
-
-        for (int i = 0; i < num_of_allocated_processes; i++){
-        	if (allocatedProcessList[i].start_page == (uint32)va){
-        		num_of_pages = allocatedProcessList[i].num_of_pages;
-        		allocatedProcessList[i].start_page = 0;
-        		allocatedProcessList[i].num_of_pages = 0;
-        		break;
-        	}
-        }
+    	int num_of_pages = frame->process_num_of_pages;
 
         uint32 address = (uint32)virtual_address;
         for (int i = 0; i < num_of_pages; i++) {
@@ -232,6 +199,11 @@ void kfree(void* virtual_address)
 
             if (frame != NULL) {
                 unmap_frame(ptr_page_directory, address);
+
+                frame->mapped_page = 0;
+                frame->process_start_page = 0;
+                frame->process_num_of_pages = 0;
+
                 tlb_invalidate(ptr_page_directory, (void*) address); // Refresh the TLB
             }
             address += PAGE_SIZE;
@@ -280,14 +252,15 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	// Write your code here, remove the panic and write your code
 	//panic("kheap_virtual_address() is not implemented yet...!!");
 	uint32 offset = physical_address % PAGE_SIZE;
-	int frame_index = physical_address/PAGE_SIZE;
+	struct FrameInfo* frame = to_frame_info(physical_address);
 
-	if (frame_table[frame_index].is_mapped == 1){
-		uint32 virtual_address = frame_table[frame_index].virtual_address | offset;
+	if (frame->mapped_page != 0){
+		uint32 virtual_address = frame->mapped_page | offset;
 		return virtual_address;
 	}
 
 	return 0;
+
 	//return the virtual address corresponding to given physical_address
 	//refer to the project presentation and documentation for details
 
@@ -310,6 +283,51 @@ void *krealloc(void *virtual_address, uint32 new_size)
 {
 	//TODO: [PROJECT'24.MS2 - BONUS#1] [1] KERNEL HEAP - krealloc
 	// Write your code here, remove the panic and write your code
+	//return NULL;
+	//panic("krealloc() is not implemented yet...!!");
+	if (virtual_address == NULL){
+		return kmalloc(new_size);
+	}
+
+	if (new_size == 0){
+		kfree(virtual_address);
+		return NULL;
+	}
+
+	int blockAllocator_address = ((uint32*)virtual_address >= Start && (uint32*)virtual_address < Break);
+	int blockAllocator_size = (new_size <= DYN_ALLOC_MAX_BLOCK_SIZE);
+
+	if (blockAllocator_address){
+		if (blockAllocator_size){
+			uint32* new_address = (uint32*)realloc_block_FF(virtual_address ,new_size);
+			return new_address;
+		}else {
+			uint32* new_address = (uint32*)kmalloc(new_size);
+			if (new_address != NULL){
+				uint32 size = get_block_size(virtual_address);
+				memcpy(new_address, virtual_address, size - (2 *sizeof(int)));
+				kfree(virtual_address);
+			}
+			return new_address;
+		}
+	}else {
+		if (blockAllocator_size){
+			uint32* new_address = (uint32*)alloc_block_FF(new_size);
+
+			if (new_address != NULL){
+				kfree(virtual_address);
+			}
+			return new_address;
+		}else {
+			uint32* new_address = (uint32*)kmalloc(new_size);
+			if (new_address != NULL){
+				uint32* ptr_page_table = NULL;
+				struct FrameInfo* frame = get_frame_info(ptr_page_directory, (uint32)virtual_address, &ptr_page_table);
+				memcpy(new_address, virtual_address, frame->process_num_of_pages * PAGE_SIZE);
+				kfree(virtual_address);
+			}
+			return new_address;
+		}
+	}
 	return NULL;
-	panic("krealloc() is not implemented yet...!!");
 }

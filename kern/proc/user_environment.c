@@ -867,8 +867,16 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 #if USE_KHEAP
 	//TODO: [PROJECT'24.MS2 - #07] [2] FAULT HANDLER I - create_user_kern_stack
 	// Write your code here, remove the panic and write your code
-	panic("create_user_kern_stack() is not implemented yet...!!");
+	//panic("create_user_kern_stack() is not implemented yet...!!");
+	uint32* ptr_stack = (uint32*)kmalloc(KERNEL_STACK_SIZE);
 
+	if (ptr_stack == NULL){
+		panic("Failed to create user kernel stack!");
+	}
+
+	pt_set_page_permissions(ptr_user_page_directory, (uint32)ptr_stack, 0, PERM_PRESENT);
+
+	return ptr_stack;
 	//allocate space for the user kernel stack.
 	//remember to leave its bottom page as a GUARD PAGE (i.e. not mapped)
 	//return a pointer to the start of the allocated space (including the GUARD PAGE)
@@ -912,6 +920,14 @@ void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 da
 	//	1) there's no initial allocations for the dynamic allocator of the user heap (=0)
 	//	2) call the initialize_dynamic_allocator(..) to complete the initialization
 	//panic("initialize_uheap_dynamic_allocator() is not implemented yet...!!");
+	if((daStart ) >= daLimit){
+		panic("error!!... (start must not be greater than limit)");
+	}
+	uint32 size=0;
+	e->Start=(uint32 *)daStart;
+	e->Hard_limit=(uint32 *)daLimit;
+	e->Break=(uint32 *)(daStart+size);
+	initialize_dynamic_allocator( daStart , size);
 }
 
 //==============================================================

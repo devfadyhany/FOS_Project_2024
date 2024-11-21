@@ -130,7 +130,7 @@ void* sys_sbrk(int numOfPages)
 	 * NOTES:
 	 * 	1) As in real OS, allocate pages lazily. While sbrk moves the segment break, pages are not allocated
 	 * 		until the user program actually tries to access data in its heap (i.e. will be allocated via the fault handler).
-	 * 	2) Allocating additional pages for a process’ heap will fail if, for example, the free frames are exhausted
+	 * 	2) Allocating additional pages for a processâ€™ heap will fail if, for example, the free frames are exhausted
 	 * 		or the break exceed the limit of the dynamic allocator. If sys_sbrk fails, the net effect should
 	 * 		be that sys_sbrk returns (void*) -1 and that the segment break and the process heap are unaffected.
 	 * 		You might have to undo any operations you have done so far in this case.
@@ -159,7 +159,21 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//TODO: [PROJECT'24.MS2 - #13] [3] USER HEAP [KERNEL SIDE] - allocate_user_mem()
 	// Write your code here, remove the panic and write your code
-	panic("allocate_user_mem() is not implemented yet...!!");
+	//panic("allocate_user_mem() is not implemented yet...!!");
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	uint32* ptr_page_table = NULL;
+
+	for (int i = 0; i < num_of_required_pages; i++){
+		uint32 page_to_be_marked = virtual_address + i * PAGE_SIZE;
+
+		get_page_table(e->env_page_directory, page_to_be_marked, &ptr_page_table);
+
+		if (ptr_page_table == NULL){
+			create_page_table(e->env_page_directory, page_to_be_marked);
+		}
+
+		pt_set_page_permissions(e->env_page_directory, page_to_be_marked, PERM_MARKED | PERM_WRITEABLE | PERM_USER, 0);
+	}
 }
 
 //=====================================

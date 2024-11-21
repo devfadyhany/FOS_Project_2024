@@ -151,7 +151,42 @@ void fault_handler(struct Trapframe *tf)
 			//TODO: [PROJECT'24.MS2 - #08] [2] FAULT HANDLER I - Check for invalid pointers
 			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
 			//your code is here
+			if (fault_va <= KERN_STACK_TOP && fault_va >= (KERN_STACK_TOP - KERNEL_STACK_SIZE)){
+				cprintf("kernel\n");
+				env_exit();
+			}
 
+			uint32 va_permissions = pt_get_page_permissions(faulted_env->env_page_directory, fault_va);
+
+			cprintf("va: %x\n", fault_va);
+			cprintf("va_perm: %x\n", va_permissions);
+
+			if (va_permissions == 0){
+				int disk_page = pf_read_env_page(faulted_env, (void*)fault_va);
+
+				if (disk_page == E_PAGE_NOT_EXIST_IN_PF){
+					if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX) && !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)){
+						env_exit();
+					}
+				}
+			}else {
+				if ((va_permissions & PERM_PRESENT) == PERM_PRESENT){
+					if ((va_permissions & PERM_WRITEABLE) == 0){
+						cprintf("read-only\n");
+						env_exit();
+					}
+				}else {
+					if ((va_permissions & PERM_WRITEABLE) == PERM_WRITEABLE){
+						cprintf("not present & writable\n");
+						env_exit();
+					}
+				}
+
+				if ((va_permissions & PERM_MARKED) == 0){
+					cprintf("unmarked\n");
+					env_exit();
+				}
+			}
 			/*============================================================================================*/
 		}
 
@@ -227,8 +262,26 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		//cprintf("PLACEMENT=========================WS Size = %d\n", wsSize );
 		//TODO: [PROJECT'24.MS2 - #09] [2] FAULT HANDLER I - Placement
 		// Write your code here, remove the panic and write your code
-		panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+		//panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+		struct FrameInfo* frame;
+		allocate_frame(&frame);
+		map_frame(faulted_env->env_page_directory, frame, fault_va, PERM_WRITEABLE | PERM_USED | PERM_MARKED);
 
+		struct WorkingSetElement* wsElement = env_page_ws_list_create_element(faulted_env, fault_va);
+
+		int disk_page = pf_read_env_page(faulted_env, (void*)fault_va);
+
+		if (disk_page == E_PAGE_NOT_EXIST_IN_PF){
+			if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX) && !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)){
+				sched_kill_env(faulted_env->env_id);
+			}
+		}
+
+		LIST_INSERT_TAIL(&(faulted_env->page_WS_list), wsElement);
+		wsSize++;
+		if (wsSize == faulted_env->page_WS_max_size){
+			faulted_env->page_last_WS_element = wsElement;
+		}
 		//refer to the project presentation and documentation for details
 	}
 	else
