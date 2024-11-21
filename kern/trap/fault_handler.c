@@ -151,7 +151,42 @@ void fault_handler(struct Trapframe *tf)
 			//TODO: [PROJECT'24.MS2 - #08] [2] FAULT HANDLER I - Check for invalid pointers
 			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
 			//your code is here
+			if (fault_va <= KERN_STACK_TOP && fault_va >= (KERN_STACK_TOP - KERNEL_STACK_SIZE)){
+				cprintf("kernel\n");
+				env_exit();
+			}
 
+			uint32 va_permissions = pt_get_page_permissions(faulted_env->env_page_directory, fault_va);
+
+			cprintf("va: %x\n", fault_va);
+			cprintf("va_perm: %x\n", va_permissions);
+
+			if (va_permissions == 0){
+				int disk_page = pf_read_env_page(faulted_env, (void*)fault_va);
+
+				if (disk_page == E_PAGE_NOT_EXIST_IN_PF){
+					if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX) && !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)){
+						env_exit();
+					}
+				}
+			}else {
+				if ((va_permissions & PERM_PRESENT) == PERM_PRESENT){
+					if ((va_permissions & PERM_WRITEABLE) == 0){
+						cprintf("read-only\n");
+						env_exit();
+					}
+				}else {
+					if ((va_permissions & PERM_WRITEABLE) == PERM_WRITEABLE){
+						cprintf("not present & writable\n");
+						env_exit();
+					}
+				}
+
+				if ((va_permissions & PERM_MARKED) == 0){
+					cprintf("unmarked\n");
+					env_exit();
+				}
+			}
 			/*============================================================================================*/
 		}
 
