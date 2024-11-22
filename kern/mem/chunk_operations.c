@@ -165,6 +165,9 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	for (int i = 0; i < num_of_required_pages; i++){
 		uint32 page_to_be_marked = virtual_address + i * PAGE_SIZE;
+		int page_num = (page_to_be_marked - USER_HEAP_START) / PAGE_SIZE;
+
+		e->marked_page[page_num] = page_to_be_marked;
 
 		get_page_table(e->env_page_directory, page_to_be_marked, &ptr_page_table);
 
@@ -174,6 +177,8 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 
 		pt_set_page_permissions(e->env_page_directory, page_to_be_marked, PERM_MARKED | PERM_WRITEABLE | PERM_USER, 0);
 	}
+
+	e->marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
 }
 
 //=====================================
