@@ -41,13 +41,15 @@ void* malloc(uint32 size) {
 
 			int page_num = (i - USER_HEAP_START)/PAGE_SIZE;
 
-			if (myEnv->marked_page[page_num] != 0){
+			uint32 current_page = myEnv->marked_page[page_num];
+
+			if (current_page != 0){
 //				cprintf("start: %x\n", i);
 //				cprintf("page marked\n");
 				continious_page_counter = 0;
 				start_page = 0;
 //				cprintf("marked pages: %d\n", myEnv->marked_page[page_num]);
-				uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+				uint32 marked_size = (current_page) * (PAGE_SIZE);
 				i += marked_size - PAGE_SIZE;
 //				cprintf("end: %x\n", i);
 				continue;
