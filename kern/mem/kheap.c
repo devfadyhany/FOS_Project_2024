@@ -57,54 +57,36 @@ void* sbrk(int numOfPages)
 
 
 	uint32 * check_max = (uint32 *)((char *)Break + ((int)(numOfPages)*(PAGE_SIZE )));
-	//cprintf("init %x ,brk :%x ,num :%d \n",Start,Break,numOfPages);
-		uint32 * old_break=Break;
-
-		if(check_max>Hard_limit || numOfPages<0)//Break
+	uint32 * old_break=Break;
+     if(check_max>Hard_limit || numOfPages<0)//Break
 		{
-			//cprintf("max %x , %x \n",check_max,Hard_limit);
-
-			return (void*)-1 ;
+		return (void*)-1 ;
 		}
-		 else if(numOfPages==0)
+	else if(numOfPages==0)
 		 {
-			// cprintf("brk0 : %x \n",Break);
 			   return (void*)(Break);
-
-
-
 		 }
 		else
 		{
 		     if(numOfPages>0)
 				{
-                   Break=check_max;
-               //    cprintf("brk+ : %x \n",Break);
-                   /*for(uint32 i=(uint32)old_break;i<(uint32)Break;i+=PAGE_SIZE){
-                   		create_page_table(ptr_page_directory , i);
-                   	}*/
+		    	 Break=check_max;
                    for(uint32 i = (uint32)old_break; i < (uint32)Break; i += PAGE_SIZE){
                 	   struct FrameInfo *frame_info = NULL;
-                	   		int is_allocate= allocate_frame(&frame_info);
+                	   int is_allocate= allocate_frame(&frame_info);
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
                 	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
-				   		frame_info->mapped_page = i;
                 	   }
                 	   else
                 	   {
                 		   panic("NO Memory...!!");
                 	   }
                    	}
-                         //cprintf("new : %x ,  %d\n",Break,Break);
 					return (void*)(old_break);
 				}
-
-
-
 		}
 		return (void*)-1 ;
-	//("sbrk() is not implemented yet...!!");
 }
 //TODO: [PROJECT'24.MS2 - BONUS#2] [1] KERNEL HEAP - Fast Page Allocator
 
