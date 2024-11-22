@@ -230,41 +230,28 @@ void *alloc_block_FF(uint32 size) {
 		}
 	}
 
-	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
+		// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
 	void* new_mem = sbrk(numofpagesNeeded );
 	if(new_mem==(void *)-1)
 	{
 		return NULL;
 	}
-	//cprintf("end1 : %x \n",end_block);
 	 end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
     	*end_block = 1;
-    	//cprintf("end2 : %x \n",end_block);
-uint32* last_block_footer = (uint32 *)((uint32)end_block - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
-uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
-
-/*cprintf("size : %x ,endblock : %x , num : %d ,\n",size_of_block,end_block,numofpagesNeeded);*/
-
-struct BlockElement* old_last_block=(struct BlockElement*)((uint32)end_block- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
-//cprintf("old : %x \n",old_last_block);
-
-
-    	 if (is_free_block(old_last_block)) {
+     uint32* last_block_footer = (uint32 *)((uint32)end_block - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
+     uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
+     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)end_block- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
+     if (is_free_block(old_last_block)) {
     	     uint32 old_size = get_block_size(old_last_block);
-    	        uint32 new_size = /*(char )*/old_size + numofpagesNeeded * PAGE_SIZE ;
-    	      /*  cprintf("old : %x \n",old_last_block);*/
+    	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
     	        LIST_REMOVE(&freeBlocksList, old_last_block);
-    	       /* cprintf("old : %x \n",old_last_block);*/
-    	       // cprintf("done remove\n");
     	        set_block_data(old_last_block, new_size, 0);
-    	      //  cprintf("done set\n");
     	        return alloc_block_FF(size);
-
-    	    } else {
+    	    }
+     else {
 
     	        uint32* new_block = (uint32*)((char*)end_block - numofpagesNeeded * PAGE_SIZE+sizeof(int));
-    	        //cprintf("end : %x , new : %x ,num :%d \n",end_block,new_block,numofpagesNeeded);
     	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
     	        return alloc_block_FF(size);
     	    }
