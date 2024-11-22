@@ -66,9 +66,19 @@ inline struct FrameInfo** create_frames_storage(int numOfFrames)
 {
 	//TODO: [PROJECT'24.MS2 - #16] [4] SHARED MEMORY - create_frames_storage()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("create_frames_storage is not implemented yet");
+	//panic("create_frames_storage is not implemented yet");
 	//Your Code is Here...
+	struct FrameInfo** framesStorage = (struct FrameInfo**)kmalloc(numOfFrames * sizeof(struct FrameInfo*));
 
+	if (framesStorage == NULL) {
+		return NULL;
+	}
+
+	for (int i = 0; i < numOfFrames; i++) {
+			framesStorage[i] = NULL;
+		}
+
+	return framesStorage;
 }
 
 //=====================================
@@ -81,9 +91,32 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size, uint8 is
 {
 	//TODO: [PROJECT'24.MS2 - #16] [4] SHARED MEMORY - create_share()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("create_share is not implemented yet");
+	//panic("create_share is not implemented yet");
 	//Your Code is Here...
+	struct Share* newShare = (struct Share*) kmalloc(sizeof(struct Share));
 
+	 if (newShare == NULL) {
+			return NULL;
+		}
+
+	 newShare->ownerID = ownerID;
+	 strncpy(newShare->name, shareName, sizeof(newShare->name) - 1);
+	 newShare->name[sizeof(newShare->name) - 1] = '\0';
+	 newShare->size = size;
+	 newShare->isWritable = isWritable;
+	 newShare->references = 1;
+	 newShare->ID = (uint32)newShare & 0x7FFFFFFF;
+
+	 int numOfFrames = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	 newShare->framesStorage = create_frames_storage(numOfFrames);
+
+	 if (newShare->framesStorage == NULL) {
+			// Undo
+			kfree(newShare);
+			return NULL;
+		}
+
+	 return newShare;
 }
 
 //=============================
@@ -97,9 +130,23 @@ struct Share* get_share(int32 ownerID, char* name)
 {
 	//TODO: [PROJECT'24.MS2 - #17] [4] SHARED MEMORY - get_share()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("get_share is not implemented yet");
+	//panic("get_share is not implemented yet");
 	//Your Code is Here...
+	struct Share* share = NULL;
 
+	acquire_spinlock(&AllShares.shareslock);
+
+	LIST_FOREACH(share, &(AllShares.shares_list)) {
+
+		if (share->ownerID == ownerID && strcmp(share->name, name) == 0) {
+
+			release_spinlock(&AllShares.shareslock);
+			return share;
+		}
+	}
+
+	release_spinlock(&AllShares.shareslock);
+	return NULL;
 }
 
 //=========================
