@@ -927,6 +927,11 @@ void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 da
 	e->Start=(uint32 *)daStart;
 	e->Hard_limit=(uint32 *)daLimit;
 	e->Break=(uint32 *)(daStart+size);
+
+	for (int i = 0; i < 131072; i++){
+		e->marked_page[i] = 0;
+	}
+	
 	initialize_dynamic_allocator( daStart , size);
 }
 
