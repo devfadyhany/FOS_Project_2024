@@ -25,35 +25,41 @@ void* malloc(uint32 size) {
 	// Write your code here, remove the panic and write your code
 	//panic("malloc() is not implemented yet...!!");
 	if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
+		cprintf("size: %d\n", size);
 		return alloc_block_FF(size);
 	} else {
 		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 		int continious_page_counter = 0;
 		uint32 start_page = 0;
 
-		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE;
-				i < USER_HEAP_MAX; i += PAGE_SIZE) {
+//		cprintf("size: %d, num_of_pages: %d\n", size, num_of_required_pages);
+
+		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
 			if (continious_page_counter == num_of_required_pages) {
 				break;
 			}
 
-			uint32* ptr_page_table = (uint32*) myEnv->env_page_directory[PDX(i)];
+			int page_num = (i - USER_HEAP_START)/PAGE_SIZE;
 
-			if (ptr_page_table != NULL){
-				uint32 page_entry = ptr_page_table[PTX(i)];
-
-				if ((page_entry & PERM_PRESENT) == PERM_PRESENT){
-					continious_page_counter = 0;
-					start_page = 0;
-					continue;
-				}
-
-				if (start_page == 0) {
-					start_page = i;
-				}
-				continious_page_counter++;
+			if (myEnv->marked_page[page_num] != 0){
+//				cprintf("start: %x\n", i);
+//				cprintf("page marked\n");
+				continious_page_counter = 0;
+				start_page = 0;
+//				cprintf("marked pages: %d\n", myEnv->marked_page[page_num]);
+				uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+				i += marked_size - PAGE_SIZE;
+//				cprintf("end: %x\n", i);
+				continue;
 			}
+
+			if (start_page == 0) {
+				start_page = i;
+			}
+			continious_page_counter++;
 		}
+
+//		cprintf("counter: %d\n", continious_page_counter);
 
 		if (continious_page_counter != num_of_required_pages) {
 			return NULL;
