@@ -185,6 +185,8 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	uint32* ptr_page_table = NULL;
 
+//	cprintf("allocating\n");
+
 	for (int i = 0; i < num_of_required_pages; i++){
 		uint32 page_to_be_marked = virtual_address + i * PAGE_SIZE;
 		int page_num = (page_to_be_marked - USER_HEAP_START) / PAGE_SIZE;
@@ -201,6 +203,7 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 	}
 
 	e->marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
+//	cprintf("Done\n");
 }
 
 //=====================================

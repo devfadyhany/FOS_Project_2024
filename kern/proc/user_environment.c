@@ -868,7 +868,7 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 	//TODO: [PROJECT'24.MS2 - #07] [2] FAULT HANDLER I - create_user_kern_stack
 	// Write your code here, remove the panic and write your code
 	//panic("create_user_kern_stack() is not implemented yet...!!");
-	uint32* ptr_stack =kmalloc (KERNEL_STACK_SIZE);
+	uint32* ptr_stack = kmalloc(KERNEL_STACK_SIZE);
 
 	if (ptr_stack == NULL){
 		panic("Failed to create user kernel stack!");
@@ -931,7 +931,7 @@ void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 da
 	for (int i = 0; i < 131072; i++){
 		e->marked_page[i] = 0;
 	}
-	
+
 	initialize_dynamic_allocator( daStart , size);
 }
 
