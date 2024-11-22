@@ -339,8 +339,34 @@ void *alloc_block_BF(uint32 size) {
 	}
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
-	sbrk(0);
-	return NULL;
+	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
+		void* new_mem = sbrk(numofpagesNeeded );
+		if(new_mem==(void *)-1)
+		{
+			return NULL;
+		}
+		 end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
+	    	*end_block = 1;
+	     uint32* last_block_footer = (uint32 *)((uint32)end_block - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
+	     uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
+	     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)end_block- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
+	     if (is_free_block(old_last_block)) {
+	    	     uint32 old_size = get_block_size(old_last_block);
+	    	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
+	    	        LIST_REMOVE(&freeBlocksList, old_last_block);
+	    	        set_block_data(old_last_block, new_size, 0);
+	    	        return alloc_block_BF(size);
+	    	    }
+	     else {
+
+	    	        uint32* new_block = (uint32*)((char*)end_block - numofpagesNeeded * PAGE_SIZE+sizeof(int));
+	    	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
+	    	        return alloc_block_BF(size);
+	    	    }
+
+
+	/*sbrk(0);
+	return NULL;*/
 }
 
 //===================================================
