@@ -34,16 +34,17 @@ void* malloc(uint32 size) {
 
 //		cprintf("size: %d, num_of_pages: %d\n", size, num_of_required_pages);
 
-		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
+		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE;
+				i <= USER_HEAP_MAX; i += PAGE_SIZE) {
 			if (continious_page_counter == num_of_required_pages) {
 				break;
 			}
 
-			int page_num = (i - USER_HEAP_START)/PAGE_SIZE;
+			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
 
 			uint32 current_page = myEnv->marked_page[page_num];
 
-			if (current_page != 0){
+			if (current_page != 0) {
 //				cprintf("start: %x\n", i);
 //				cprintf("page marked\n");
 				continious_page_counter = 0;
@@ -97,8 +98,42 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//==============================================================
 	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
 	// Write your code here, remove the panic and write your code
-	panic("smalloc() is not implemented yet...!!");
-	return NULL;
+//	panic("smalloc() is not implemented yet...!!");
+
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	int continious_page_counter = 0;
+	uint32 start_page = 0;
+
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX;
+			i += PAGE_SIZE) {
+		if (continious_page_counter == num_of_required_pages) {
+			break;
+		}
+
+		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+
+		if (myEnv->marked_page[page_num] != 0) {
+			continious_page_counter = 0;
+			start_page = 0;
+			uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+			i += marked_size - PAGE_SIZE;
+			continue;
+		}
+
+		if (start_page == 0) {
+			start_page = i;
+		}
+		continious_page_counter++;
+
+	}
+
+	if (continious_page_counter != num_of_required_pages) {
+		return NULL;
+	}
+
+	sys_createSharedObject(sharedVarName, size, isWritable, (void*) start_page);
+
+	return (void*) start_page;
 }
 
 //========================================

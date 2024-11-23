@@ -156,10 +156,54 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 {
 	//TODO: [PROJECT'24.MS2 - #19] [4] SHARED MEMORY [KERNEL SIDE] - createSharedObject()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("createSharedObject is not implemented yet");
+//	panic("createSharedObject is not implemented yet");
 	//Your Code is Here...
 
 	struct Env* myenv = get_cpu_proc(); //The calling environment
+	struct Share* existingShare = get_share(ownerID, shareName);
+		    if (existingShare != NULL) {
+		        return E_SHARED_MEM_EXISTS;
+		    }
+
+		    struct Share* newShare = create_share(ownerID, shareName, size, isWritable);
+
+		    if (newShare == NULL) {
+		        return E_NO_SHARE;
+		    }
+
+		    uint32 shared_mem_free_address = (uint32)virtual_address;
+		    uint32 numOfFrames = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+
+		    for (uint32 i = 0; i < numOfFrames; i++) {
+		        struct FrameInfo* frame;
+		        if (allocate_frame(&frame) != 0 || frame == NULL) {
+
+		            return E_NO_SHARE;
+		        }
+
+		        uint32 va = shared_mem_free_address + (i * PAGE_SIZE);
+		        if(isWritable == 1){
+		        	map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE|PERM_PRESENT|PERM_USER);
+		        }else {
+		        	map_frame(myenv->env_page_directory, frame, va, PERM_PRESENT|PERM_USER);
+		        }
+
+
+		        newShare->framesStorage[i] = frame;
+		        uint32 marked_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
+		        myenv->marked_page[marked_page_index] = va;
+
+		    }
+		    uint32 marked_page_index = (shared_mem_free_address - USER_HEAP_START) / PAGE_SIZE;
+		    myenv->marked_page[marked_page_index] = numOfFrames;
+		    acquire_spinlock(&AllShares.shareslock);
+		    LIST_INSERT_HEAD(&(AllShares.shares_list), newShare);
+		    release_spinlock(&AllShares.shareslock);
+
+		    shared_mem_free_address += ROUNDUP(size, PAGE_SIZE);
+
+
+		    return newShare->ID;
 }
 
 
@@ -174,6 +218,10 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address)
 	//Your Code is Here...
 
 	struct Env* myenv = get_cpu_proc(); //The calling environment
+
+
+	return 0;
+
 }
 
 //==================================================================================//
