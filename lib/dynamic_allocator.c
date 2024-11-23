@@ -83,7 +83,7 @@ bool is_initialized = 0;
 //==================================
 // [1] INITIALIZE DYNAMIC ALLOCATOR:
 //==================================
-uint32*  end_block;
+/*uint32*  end_block;*/
 void initialize_dynamic_allocator(uint32 daStart,
 		uint32 initSizeOfAllocatedSpace) {
 	//==================================================================================
@@ -106,7 +106,7 @@ void initialize_dynamic_allocator(uint32 daStart,
 	uint32* begin_block = (uint32*) daStart;
 	*begin_block = 1;
 
-	  end_block = (uint32*) (daStart + initSizeOfAllocatedSpace
+	uint32* end_block = (uint32*) (daStart + initSizeOfAllocatedSpace
 			- sizeof(int));
 	*end_block = 1;
 
@@ -232,16 +232,18 @@ void *alloc_block_FF(uint32 size) {
 
 		// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-	void* new_mem = sbrk(numofpagesNeeded );
+	uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
 	if(new_mem==(void *)-1)
 	{
 		return NULL;
 	}
-	 end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
-    	*end_block = 1;
-     uint32* last_block_footer = (uint32 *)((uint32)end_block - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
+	 /*end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
+    	*end_block = 1;*/
+	new_mem = (uint32 *)((char *)(new_mem) + numofpagesNeeded*PAGE_SIZE);
+	    *new_mem = 1;
+     uint32* last_block_footer = (uint32 *)((uint32)new_mem - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
      uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
-     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)end_block- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
+     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)new_mem- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
      if (is_free_block(old_last_block)) {
     	     uint32 old_size = get_block_size(old_last_block);
     	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
@@ -251,7 +253,7 @@ void *alloc_block_FF(uint32 size) {
     	    }
      else {
 
-    	        uint32* new_block = (uint32*)((char*)end_block - numofpagesNeeded * PAGE_SIZE+sizeof(int));
+    	        uint32* new_block = (uint32*)((char*)new_mem - numofpagesNeeded * PAGE_SIZE+sizeof(int));
     	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
     	        return alloc_block_FF(size);
     	    }
@@ -327,16 +329,18 @@ void *alloc_block_BF(uint32 size) {
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-		void* new_mem = sbrk(numofpagesNeeded );
+		uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
 		if(new_mem==(void *)-1)
 		{
 			return NULL;
 		}
-		 end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
-	    	*end_block = 1;
-	     uint32* last_block_footer = (uint32 *)((uint32)end_block - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
+		/* end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
+	    	*end_block = 1;*/
+		new_mem = (uint32 *)((char *)(new_mem) + numofpagesNeeded*PAGE_SIZE);
+			    *new_mem = 1;
+	     uint32* last_block_footer = (uint32 *)((uint32)new_mem - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
 	     uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
-	     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)end_block- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
+	     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)new_mem- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
 	     if (is_free_block(old_last_block)) {
 	    	     uint32 old_size = get_block_size(old_last_block);
 	    	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
@@ -346,7 +350,7 @@ void *alloc_block_BF(uint32 size) {
 	    	    }
 	     else {
 
-	    	        uint32* new_block = (uint32*)((char*)end_block - numofpagesNeeded * PAGE_SIZE+sizeof(int));
+	    	        uint32* new_block = (uint32*)((char*)new_mem - numofpagesNeeded * PAGE_SIZE+sizeof(int));
 	    	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
 	    	        return alloc_block_BF(size);
 	    	    }
