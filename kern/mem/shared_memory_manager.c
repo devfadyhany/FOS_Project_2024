@@ -214,13 +214,34 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address)
 {
 	//TODO: [PROJECT'24.MS2 - #21] [4] SHARED MEMORY [KERNEL SIDE] - getSharedObject()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("getSharedObject is not implemented yet");
+	// panic("getSharedObject is not implemented yet");
 	//Your Code is Here...
-
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 
+	struct Share* sharedObj = get_share(ownerID , shareName) ;
+	if (sharedObj == NULL){
+		return E_SHARED_MEM_NOT_EXISTS;
+	}
 
-	return 0;
+	uint32 va = (uint32) virtual_address;
+
+	struct FrameInfo * frame ;
+	int i = 0;
+	while(sharedObj->framesStorage[i] != NULL) {
+		frame = sharedObj->framesStorage[i];
+		if (sharedObj->isWritable == 1){
+			map_frame(myenv->env_page_directory,frame,va, PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
+		}else {
+			map_frame(myenv->env_page_directory,frame,va, PERM_PRESENT | PERM_USER);
+		}
+		frame->references++;
+		va += PAGE_SIZE ;
+		i++;
+	}
+
+	sharedObj->references++;
+	int id = ((uint32) virtual_address & 0x7FFFFFFF ) ;
+	return id;
 
 }
 
