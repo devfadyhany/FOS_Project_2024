@@ -77,6 +77,7 @@ void* sbrk(int numOfPages)
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
                 	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+                	   		        frame_info->mapped_page = i;
                 	   }
                 	   else
                 	   {

@@ -25,7 +25,7 @@ void* malloc(uint32 size) {
 	// Write your code here, remove the panic and write your code
 	//panic("malloc() is not implemented yet...!!");
 	if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
-		cprintf("size: %d\n", size);
+//		cprintf("size: %d\n", size);
 		return alloc_block_FF(size);
 	} else {
 		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
@@ -131,7 +131,11 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 		return NULL;
 	}
 
-	sys_createSharedObject(sharedVarName, size, isWritable, (void*) start_page);
+	int res = sys_createSharedObject(sharedVarName, size, isWritable, (void*) start_page);
+
+	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE){
+		return NULL;
+	}
 
 	return (void*) start_page;
 }
