@@ -182,11 +182,11 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 		        }
 
 		        uint32 va = shared_mem_free_address + (i * PAGE_SIZE);
-		        if(isWritable == 1){
+//		        if(isWritable == 1){
 		        	map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE|PERM_PRESENT|PERM_USER);
-		        }else {
-		        	map_frame(myenv->env_page_directory, frame, va, PERM_PRESENT|PERM_USER);
-		        }
+//		        }else {
+//		        	map_frame(myenv->env_page_directory, frame, va, PERM_PRESENT|PERM_USER);
+//		        }
 
 
 		        newShare->framesStorage[i] = frame;
