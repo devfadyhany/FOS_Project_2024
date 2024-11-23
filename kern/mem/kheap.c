@@ -10,6 +10,9 @@
 //Return:
 //	On success: 0
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
+
+int num_of_processes_in_kernel = 0;
+
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
@@ -104,13 +107,23 @@ void* kmalloc(unsigned int size)
 			int continious_page_counter = 0;
 			uint32 start_page = 0;
 
+			uint32* ptr_page_table = NULL;
+			struct FrameInfo* assigned_frame = NULL;
+
+			int remaining_process = num_of_processes_in_kernel;
+
 			for (uint32 i = (uint32)Hard_limit + PAGE_SIZE; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
 				if (continious_page_counter == num_of_required_pages){
 					break;
 				}
 
-				uint32* ptr_page_table = NULL;
-				struct FrameInfo* assigned_frame = get_frame_info(ptr_page_directory, i, &ptr_page_table);
+				if (remaining_process == 0 && ((KERNEL_HEAP_MAX - i) / PAGE_SIZE) >= num_of_required_pages){
+					continious_page_counter = num_of_required_pages;
+					start_page = i;
+					break;
+				}
+
+				assigned_frame = get_frame_info(ptr_page_directory, i, &ptr_page_table);
 
 				if (assigned_frame == NULL){
 					if (start_page == 0){
@@ -120,6 +133,8 @@ void* kmalloc(unsigned int size)
 				}else {
 					continious_page_counter = 0;
 					start_page = 0;
+					i += (assigned_frame->process_num_of_pages) * PAGE_SIZE - PAGE_SIZE;
+					remaining_process--;
 				}
 			}
 
@@ -128,22 +143,29 @@ void* kmalloc(unsigned int size)
 			}
 
 			int counter = 0;
-			struct FrameInfo * iterator;
+			struct FrameInfo * iterator = NULL;
+			uint32 current_page_address;
+
 			LIST_FOREACH(iterator, &MemFrameLists.free_frame_list){
 				if (counter == num_of_required_pages){
 					break;
 				}
 
 				allocate_frame(&iterator);
-				uint32 current_page_address = start_page + (counter * PAGE_SIZE);
-				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
+				current_page_address = start_page + (counter * PAGE_SIZE);
+				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE | PERM_PRESENT);
 
 				iterator->mapped_page = current_page_address;
-				iterator->process_start_page = start_page;
-				iterator->process_num_of_pages = num_of_required_pages;
+
+				if (current_page_address == start_page){
+					iterator->process_start_page = start_page;
+					iterator->process_num_of_pages = num_of_required_pages;
+				}
 
 				counter++;
 			}
+
+			num_of_processes_in_kernel++;
 
 			return (void*)start_page;
 
@@ -171,14 +193,17 @@ void kfree(void* virtual_address)
     else if (va >= (uint32*)((uint32)Hard_limit + PAGE_SIZE) && va <= (uint32*)KERNEL_HEAP_MAX) {
 
     	uint32 physical_address = kheap_physical_address((uint32)va);
-    	struct FrameInfo* frame = to_frame_info(physical_address);
+    	struct FrameInfo* frame_to_get_pages = to_frame_info(physical_address);
 
-    	int num_of_pages = frame->process_num_of_pages;
+    	int num_of_pages = frame_to_get_pages->process_num_of_pages;
 
         uint32 address = (uint32)virtual_address;
+        uint32* ptr_page_table = NULL;
+        struct FrameInfo* frame = NULL;
+
         for (int i = 0; i < num_of_pages; i++) {
-			uint32* ptr_page_table = NULL;
-            struct FrameInfo* frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
+
+            frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
 
             if (frame != NULL) {
                 unmap_frame(ptr_page_directory, address);
@@ -191,6 +216,7 @@ void kfree(void* virtual_address)
             }
             address += PAGE_SIZE;
         }
+        num_of_processes_in_kernel--;
     }
     else {
 //         Invalid address, should panic
