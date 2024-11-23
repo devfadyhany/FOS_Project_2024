@@ -146,8 +146,49 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 void* sget(int32 ownerEnvID, char *sharedVarName) {
 	//TODO: [PROJECT'24.MS2 - #20] [4] SHARED MEMORY [USER SIDE] - sget()
 	// Write your code here, remove the panic and write your code
-	panic("sget() is not implemented yet...!!");
-	return NULL;
+	cprintf("one\n");
+	int size = sys_getSizeOfSharedObject(ownerEnvID,sharedVarName);
+	cprintf("two\n");
+	if (size == E_SHARED_MEM_NOT_EXISTS){
+		return NULL;
+	}
+	// [3] search ff for space
+
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	int continious_page_counter = 0;
+	uint32 start_page = 0;
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX;
+			i += PAGE_SIZE) {
+		if (continious_page_counter == num_of_required_pages) {
+			break;
+		}
+
+		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+
+		if (myEnv->marked_page[page_num] != 0) {
+			continious_page_counter = 0;
+			start_page = 0;
+			uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+			i += marked_size - PAGE_SIZE;
+			continue;
+		}
+
+		if (start_page == 0) {
+			start_page = i;
+		}
+		continious_page_counter++;
+
+	}
+
+		if (continious_page_counter != num_of_required_pages) {
+			return NULL;
+		}
+
+	int id = sys_getSharedObject(ownerEnvID , sharedVarName , (uint32 *) start_page);
+	if (id == E_SHARED_MEM_NOT_EXISTS){
+		return NULL ;
+	}
+	return (uint32 *) start_page ;
 }
 
 //==================================================================================//
