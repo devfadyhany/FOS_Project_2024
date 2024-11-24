@@ -230,38 +230,41 @@ void *alloc_block_FF(uint32 size) {
 		}
 	}
 
-		// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
-	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-	uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
-        uint32* return_sbrk = new_mem+sizeof(int);
+	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
+	int numofpagesNeeded = ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
+	uint32* new_mem = sbrk(numofpagesNeeded) - sizeof(int);
+	uint32* return_sbrk = new_mem + sizeof(int);
 
-	if(return_sbrk==(void *)-1)//-----------
-	{
+	if (return_sbrk == (void *) -1)	//-----------
+			{
 		return NULL;
 	}
-	 /*end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
-    	*end_block = 1;*/
-	new_mem = (uint32 *)((char *)(new_mem) + numofpagesNeeded*PAGE_SIZE);
-	    *new_mem = 1;
-     uint32* last_block_footer = (uint32 *)((uint32)new_mem - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
-     uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
-     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)new_mem- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
-     if (is_free_block(old_last_block)) {
-    	     uint32 old_size = get_block_size(old_last_block);
-    	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
-    	        LIST_REMOVE(&freeBlocksList, old_last_block);
-    	        set_block_data(old_last_block, new_size, 0);
-    	        return alloc_block_FF(size);
-    	    }
-     else {
+	/*end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
+	 *end_block = 1;*/
+	new_mem = (uint32 *) ((char *) (new_mem) + numofpagesNeeded * PAGE_SIZE);
+	*new_mem = 1;
+	uint32* last_block_footer = (uint32 *) ((uint32) new_mem
+			- numofpagesNeeded * PAGE_SIZE - sizeof(int));
+	uint32 size_of_block = *((uint32*) last_block_footer) & ~1;
+	struct BlockElement* old_last_block =
+			(struct BlockElement*) ((uint32) new_mem
+					- (numofpagesNeeded * PAGE_SIZE) - (size_of_block)
+					+ sizeof(int));
+	if (is_free_block(old_last_block)) {
+		uint32 old_size = get_block_size(old_last_block);
+		uint32 new_size = old_size + numofpagesNeeded * PAGE_SIZE;
+		LIST_REMOVE(&freeBlocksList, old_last_block);
+		set_block_data(old_last_block, new_size, 0);
+		return alloc_block_FF(size);
+	} else {
 
-    	        uint32* new_block = (uint32*)((char*)new_mem - numofpagesNeeded * PAGE_SIZE+sizeof(int));
-    	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
-    	        return alloc_block_FF(size);
-    	    }
+		uint32* new_block = (uint32*) ((char*) new_mem
+				- numofpagesNeeded * PAGE_SIZE + sizeof(int));
+		set_block_data(new_block, numofpagesNeeded * PAGE_SIZE, 0);
+		return alloc_block_FF(size);
+	}
 
 }
-
 
 //=========================================
 // [4] ALLOCATE BLOCK BY BEST FIT:
@@ -331,38 +334,41 @@ void *alloc_block_BF(uint32 size) {
 	}
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
-	    int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-	    uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
-	    uint32* return_sbrk = new_mem+sizeof(int);
+	int numofpagesNeeded = ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
+	uint32* new_mem = sbrk(numofpagesNeeded) - sizeof(int);
+	uint32* return_sbrk = new_mem + sizeof(int);
 
-		if(return_sbrk==(void *)-1)//-----------
-		{
-			return NULL;
-		}
-		/* end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
-	    	*end_block = 1;*/
-		new_mem = (uint32 *)((char *)(new_mem) + numofpagesNeeded*PAGE_SIZE);
-			    *new_mem = 1;
-	     uint32* last_block_footer = (uint32 *)((uint32)new_mem - numofpagesNeeded * PAGE_SIZE-  sizeof(int));
-	     uint32 size_of_block=*((uint32*)last_block_footer ) & ~1;
-	     struct BlockElement* old_last_block=(struct BlockElement*)((uint32)new_mem- (numofpagesNeeded * PAGE_SIZE)-(size_of_block)+ sizeof(int));
-	     if (is_free_block(old_last_block)) {
-	    	     uint32 old_size = get_block_size(old_last_block);
-	    	        uint32 new_size =old_size + numofpagesNeeded * PAGE_SIZE ;
-	    	        LIST_REMOVE(&freeBlocksList, old_last_block);
-	    	        set_block_data(old_last_block, new_size, 0);
-	    	        return alloc_block_BF(size);
-	    	    }
-	     else {
+	if (return_sbrk == (void *) -1)	//-----------
+			{
+		return NULL;
+	}
+	/* end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
+	 *end_block = 1;*/
+	new_mem = (uint32 *) ((char *) (new_mem) + numofpagesNeeded * PAGE_SIZE);
+	*new_mem = 1;
+	uint32* last_block_footer = (uint32 *) ((uint32) new_mem
+			- numofpagesNeeded * PAGE_SIZE - sizeof(int));
+	uint32 size_of_block = *((uint32*) last_block_footer) & ~1;
+	struct BlockElement* old_last_block =
+			(struct BlockElement*) ((uint32) new_mem
+					- (numofpagesNeeded * PAGE_SIZE) - (size_of_block)
+					+ sizeof(int));
+	if (is_free_block(old_last_block)) {
+		uint32 old_size = get_block_size(old_last_block);
+		uint32 new_size = old_size + numofpagesNeeded * PAGE_SIZE;
+		LIST_REMOVE(&freeBlocksList, old_last_block);
+		set_block_data(old_last_block, new_size, 0);
+		return alloc_block_BF(size);
+	} else {
 
-	    	        uint32* new_block = (uint32*)((char*)new_mem - numofpagesNeeded * PAGE_SIZE+sizeof(int));
-	    	        set_block_data(new_block, numofpagesNeeded * PAGE_SIZE  , 0);
-	    	        return alloc_block_BF(size);
-	    	    }
-
+		uint32* new_block = (uint32*) ((char*) new_mem
+				- numofpagesNeeded * PAGE_SIZE + sizeof(int));
+		set_block_data(new_block, numofpagesNeeded * PAGE_SIZE, 0);
+		return alloc_block_BF(size);
+	}
 
 	/*sbrk(0);
-	return NULL;*/
+	 return NULL;*/
 }
 
 //===================================================
@@ -460,12 +466,13 @@ void *realloc_block_FF(void* va, uint32 new_size) {
 			set_block_data(va, new_size, 1);
 			// SPLIT
 			if ((old_size + next_element_size) - new_size != 0) {
-				set_block_data(va + new_size, (old_size + next_element_size) - new_size, 0);
+				set_block_data(va + new_size,
+						(old_size + next_element_size) - new_size, 0);
 			}
 			return va;
 		} else {
 			free_block(va);
-			va = alloc_block_FF(new_size - (2*sizeof(int)));
+			va = alloc_block_FF(new_size - (2 * sizeof(int)));
 			return va;
 		}
 	}
@@ -480,11 +487,12 @@ void *realloc_block_FF(void* va, uint32 new_size) {
 			uint32 next_element_size = get_block_size(next_element);
 
 			LIST_REMOVE(&freeBlocksList, next_element);
-			set_block_data(va + new_size, (old_size - new_size) + next_element_size, 0);
-		}else {
-			if ((old_size - new_size) >= DYN_ALLOC_MIN_BLOCK_SIZE){
+			set_block_data(va + new_size,
+					(old_size - new_size) + next_element_size, 0);
+		} else {
+			if ((old_size - new_size) >= DYN_ALLOC_MIN_BLOCK_SIZE) {
 				set_block_data(va + new_size, (old_size - new_size), 0);
-			}else {
+			} else {
 				set_block_data(va, new_size + (old_size - new_size), 1);
 			}
 		}
