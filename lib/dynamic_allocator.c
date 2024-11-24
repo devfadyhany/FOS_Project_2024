@@ -233,7 +233,9 @@ void *alloc_block_FF(uint32 size) {
 		// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
 	uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
-	if(new_mem==(void *)-1)
+        uint32* return_sbrk = new_mem+sizeof(int);
+
+	if(return_sbrk==(void *)-1)//-----------
 	{
 		return NULL;
 	}
@@ -259,6 +261,7 @@ void *alloc_block_FF(uint32 size) {
     	    }
 
 }
+
 
 //=========================================
 // [4] ALLOCATE BLOCK BY BEST FIT:
@@ -328,9 +331,11 @@ void *alloc_block_BF(uint32 size) {
 	}
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
-	int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-		uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
-		if(new_mem==(void *)-1)
+	    int numofpagesNeeded=ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
+	    uint32* new_mem = sbrk(numofpagesNeeded )-sizeof(int);
+	    uint32* return_sbrk = new_mem+sizeof(int);
+
+		if(return_sbrk==(void *)-1)//-----------
 		{
 			return NULL;
 		}
