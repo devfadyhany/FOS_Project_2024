@@ -1,5 +1,6 @@
 #include <inc/lib.h>
 
+int marked_page[131072];
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
@@ -25,34 +26,26 @@ void* malloc(uint32 size) {
 	// Write your code here, remove the panic and write your code
 	//panic("malloc() is not implemented yet...!!");
 	if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
-//		cprintf("size: %d\n", size);
 		return alloc_block_FF(size);
 	} else {
 		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 		int continious_page_counter = 0;
 		uint32 start_page = 0;
 
-//		cprintf("size: %d, num_of_pages: %d\n", size, num_of_required_pages);
-
-		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE;
-				i <= USER_HEAP_MAX; i += PAGE_SIZE) {
+		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
 			if (continious_page_counter == num_of_required_pages) {
 				break;
 			}
 
 			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
 
-			uint32 current_page = myEnv->marked_page[page_num];
+			uint32 current_page = marked_page[page_num];
 
 			if (current_page != 0) {
-//				cprintf("start: %x\n", i);
-//				cprintf("page marked\n");
 				continious_page_counter = 0;
 				start_page = 0;
-//				cprintf("marked pages: %d\n", myEnv->marked_page[page_num]);
 				uint32 marked_size = (current_page) * (PAGE_SIZE);
 				i += marked_size - PAGE_SIZE;
-//				cprintf("end: %x\n", i);
 				continue;
 			}
 
@@ -62,17 +55,24 @@ void* malloc(uint32 size) {
 			continious_page_counter++;
 		}
 
-//		cprintf("counter: %d\n", continious_page_counter);
-
-		if (continious_page_counter != num_of_required_pages) {
+		if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
 			return NULL;
 		}
 
 		sys_allocate_user_mem(start_page, size);
 
+		for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
+			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+
+			marked_page[page_num] = i;
+		}
+
+		marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
+
 		return (void*) start_page;
 	}
 	return NULL;
+
 //Use sys_isUHeapPlacementStrategyFIRSTFIT() and	sys_isUHeapPlacementStrategyBESTFIT()
 //to check the current strategy
 
@@ -85,21 +85,28 @@ void free(void* virtual_address) {
 	//TODO: [PROJECT'24.MS2 - #14] [3] USER HEAP [USER SIDE] - free()
 	// Write your code here, remove the panic and write your code
 	// panic("free() is not implemented yet...!!");
-	uint32 va = (uint32)virtual_address;
+	uint32 va = (uint32) virtual_address;
 
-	if (va >= USER_HEAP_START && va <= (uint32)(myEnv->Break)) {
+	if (va >= USER_HEAP_START && va <= (uint32) (myEnv->Break)) {
 		free_block(virtual_address);
 		return;
-	} else if (va >= ((uint32)(myEnv->Hard_limit) + PAGE_SIZE) && va <= USER_HEAP_MAX) {
-		int start_page_index = (va - USER_HEAP_START)/ PAGE_SIZE;
-		int num_of_pages = myEnv->marked_page[start_page_index];
+	} else if (va
+			>= ((uint32) (myEnv->Hard_limit) + PAGE_SIZE)&& va <= USER_HEAP_MAX) {
+		int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
+		int num_of_pages = marked_page[start_page_index];
 
-		cprintf("num of pages: %d\n", num_of_pages);
+		for (uint32 i = va; i < va + (num_of_pages * PAGE_SIZE); i +=
+		PAGE_SIZE) {
+			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
 
-		return sys_free_user_mem(va, num_of_pages * PAGE_SIZE);
+			marked_page[page_num] = 0;
+		}
+
+		sys_free_user_mem(va, num_of_pages * PAGE_SIZE);
 	} else {
 		panic("invalid address");
 	}
+
 }
 
 //=================================
@@ -114,7 +121,6 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
 	// Write your code here, remove the panic and write your code
 //	panic("smalloc() is not implemented yet...!!");
-
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
@@ -127,10 +133,10 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 
 		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
 
-		if (myEnv->marked_page[page_num] != 0) {
+		if (marked_page[page_num] != 0) {
 			continious_page_counter = 0;
 			start_page = 0;
-			uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+			uint32 marked_size = (marked_page[page_num]) * (PAGE_SIZE);
 			i += marked_size - PAGE_SIZE;
 			continue;
 		}
@@ -146,13 +152,23 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 		return NULL;
 	}
 
-	int res = sys_createSharedObject(sharedVarName, size, isWritable, (void*) start_page);
+	int res = sys_createSharedObject(sharedVarName, size, isWritable,
+			(void*) start_page);
 
-	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE){
+	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE) {
 		return NULL;
 	}
 
+	for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
+		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+
+		marked_page[page_num] = i;
+	}
+
+	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
+
 	return (void*) start_page;
+
 }
 
 //========================================
@@ -161,10 +177,9 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 void* sget(int32 ownerEnvID, char *sharedVarName) {
 	//TODO: [PROJECT'24.MS2 - #20] [4] SHARED MEMORY [USER SIDE] - sget()
 	// Write your code here, remove the panic and write your code
-	cprintf("one\n");
-	int size = sys_getSizeOfSharedObject(ownerEnvID,sharedVarName);
-	cprintf("two\n");
-	if (size == E_SHARED_MEM_NOT_EXISTS){
+	int size = sys_getSizeOfSharedObject(ownerEnvID, sharedVarName);
+
+	if (size == E_SHARED_MEM_NOT_EXISTS) {
 		return NULL;
 	}
 	// [3] search ff for space
@@ -172,18 +187,17 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX;
-			i += PAGE_SIZE) {
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
 		if (continious_page_counter == num_of_required_pages) {
 			break;
 		}
 
 		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
 
-		if (myEnv->marked_page[page_num] != 0) {
+		if (marked_page[page_num] != 0) {
 			continious_page_counter = 0;
 			start_page = 0;
-			uint32 marked_size = (myEnv->marked_page[page_num]) * (PAGE_SIZE);
+			uint32 marked_size = (marked_page[page_num]) * (PAGE_SIZE);
 			i += marked_size - PAGE_SIZE;
 			continue;
 		}
@@ -192,18 +206,26 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 			start_page = i;
 		}
 		continious_page_counter++;
-
 	}
 
-		if (continious_page_counter != num_of_required_pages) {
-			return NULL;
-		}
-
-	int id = sys_getSharedObject(ownerEnvID , sharedVarName , (uint32 *) start_page);
-	if (id == E_SHARED_MEM_NOT_EXISTS){
-		return NULL ;
+	if (continious_page_counter != num_of_required_pages) {
+		return NULL;
 	}
-	return (uint32 *) start_page ;
+
+	int id = sys_getSharedObject(ownerEnvID, sharedVarName,(uint32 *) start_page);
+	if (id == E_SHARED_MEM_NOT_EXISTS) {
+		return NULL;
+	}
+
+//	for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
+//		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+//
+//		marked_page[page_num] = i;
+//	}
+//
+//	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
+
+	return (uint32 *) start_page;
 }
 
 //==================================================================================//

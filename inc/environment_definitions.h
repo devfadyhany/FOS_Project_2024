@@ -126,8 +126,6 @@ struct Env {
 	uint32* Break;
 
 	uint32* Hard_limit;
-
-	uint32 marked_page[131072];
 	//=======================================================================
 	//for page file management
 	uint32* disk_env_pgdir;
