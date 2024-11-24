@@ -185,6 +185,8 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 		newShare->framesStorage[i] = frame;
 	}
 
+	newShare->framesStorage[0]->process_num_of_pages = numOfFrames;
+
 	acquire_spinlock(&AllShares.shareslock);
 	LIST_INSERT_HEAD(&(AllShares.shares_list), newShare);
 	release_spinlock(&AllShares.shareslock);
@@ -209,11 +211,14 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 		return E_SHARED_MEM_NOT_EXISTS;
 	}
 
+	cprintf("got shared object\n");
+
 	uint32 va = (uint32) virtual_address;
 
 	struct FrameInfo * frame;
 	int i = 0;
-	while (sharedObj->framesStorage[i] != NULL) {
+
+	for (int i = 0; i < sharedObj->framesStorage[0]->process_num_of_pages; i++){
 		frame = sharedObj->framesStorage[i];
 		if (sharedObj->isWritable == 1) {
 			map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
@@ -222,7 +227,6 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 		}
 		frame->references++;
 		va += PAGE_SIZE;
-		i++;
 	}
 
 	sharedObj->references++;
