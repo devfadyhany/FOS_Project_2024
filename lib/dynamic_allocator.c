@@ -232,13 +232,15 @@ void *alloc_block_FF(uint32 size) {
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded = ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-	uint32* new_mem = sbrk(numofpagesNeeded) - sizeof(int);
-	uint32* return_sbrk = new_mem + sizeof(int);
+	uint32* return_sbrk = sbrk(numofpagesNeeded) ;//run tff2 10000
+
 
 	if (return_sbrk == (void *) -1)	//-----------
 			{
+		//cprintf("retun : %x \n",return_sbrk);
 		return NULL;
 	}
+	uint32* new_mem = (uint32 *)((uint32)return_sbrk - sizeof(int));
 	/*end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
 	 *end_block = 1;*/
 	new_mem = (uint32 *) ((char *) (new_mem) + numofpagesNeeded * PAGE_SIZE);
@@ -335,13 +337,15 @@ void *alloc_block_BF(uint32 size) {
 
 	// NO FREE BLOCK FOUND FOR THE PROVIDED SIZE
 	int numofpagesNeeded = ROUNDUP(allocated_block_size, PAGE_SIZE) / PAGE_SIZE;
-	uint32* new_mem = sbrk(numofpagesNeeded) - sizeof(int);
-	uint32* return_sbrk = new_mem + sizeof(int);
+	uint32* return_sbrk = sbrk(numofpagesNeeded) ;//run tff2 10000
+
 
 	if (return_sbrk == (void *) -1)	//-----------
 			{
+		//cprintf("retun : %x \n",return_sbrk);
 		return NULL;
 	}
+	uint32* new_mem = (uint32 *)((uint32)return_sbrk - sizeof(int));
 	/* end_block = (uint32 *)((char *)(end_block) + numofpagesNeeded*PAGE_SIZE);
 	 *end_block = 1;*/
 	new_mem = (uint32 *) ((char *) (new_mem) + numofpagesNeeded * PAGE_SIZE);
