@@ -187,7 +187,6 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 		return NULL;
 	}
 	// [3] search ff for space
-
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
@@ -217,6 +216,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	}
 
 	int id = sys_getSharedObject(ownerEnvID, sharedVarName,(uint32 *) start_page);
+
 	if (id == E_SHARED_MEM_NOT_EXISTS) {
 		return NULL;
 	}
@@ -229,7 +229,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 
 	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].num_of_marked_pages = num_of_required_pages;
 
-	return (uint32 *) start_page;
+	return (void*) start_page;
 }
 
 //==================================================================================//

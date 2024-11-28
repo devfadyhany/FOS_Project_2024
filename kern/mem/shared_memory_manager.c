@@ -214,6 +214,8 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 	uint32 va = (uint32) virtual_address;
 
 	struct FrameInfo * frame;
+	int i = 0;
+
 	for (int i = 0; i < sharedObj->framesStorage[0]->process_num_of_pages; i++){
 		frame = sharedObj->framesStorage[i];
 		if (sharedObj->isWritable == 1) {
