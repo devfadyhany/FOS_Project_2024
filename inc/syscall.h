@@ -52,6 +52,8 @@ enum
 	SYS_sbrk,
 	SYS_free_user_mem,
 	SYS_allocate_user_mem,
+	SYS_check_marked_page,
+	SYS_check_shared_allocated_page,
 	//=====================================================================
 	NSYSCALLS
 };

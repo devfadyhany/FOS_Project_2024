@@ -196,6 +196,25 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 	return newShare->ID;
 }
 
+int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages){
+	struct Env* myenv = get_cpu_proc();
+	uint32* ptr_page_table = NULL;
+	struct FrameInfo* frame = get_frame_info(myenv->env_page_directory, virtual_address, &ptr_page_table);
+	uint32 va_permissions = pt_get_page_permissions(myenv->env_page_directory, virtual_address);
+
+	if (frame != NULL){
+		*numOfAllocatedPages = frame->process_num_of_pages;
+		return 1;
+	}
+
+	if ((va_permissions & PERM_MARKED) && (va_permissions != 0xffffffff)){
+		*numOfAllocatedPages = 0;
+		return 1;
+	}
+
+	return 0;
+}
+
 //======================
 // [5] Get Share Object:
 //======================
