@@ -14,6 +14,7 @@
 
 //extern void inctst();
 
+int marked_page[NUM_OF_UHEAP_PAGES];
 /******************************/
 /*[1] RAM CHUNKS MANIPULATION */
 /******************************/
@@ -186,6 +187,24 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size) {
 
 		pt_set_page_permissions(e->env_page_directory, page_to_be_marked, PERM_MARKED | PERM_WRITEABLE | PERM_USER, 0);
 	}
+
+	marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE] = num_of_required_pages;
+}
+
+int check_marked_page(struct Env* e, uint32 virtual_address, int* numOfMarkedPagesAfter){
+	uint32* ptr_page_table = NULL;
+	struct FrameInfo* frame = get_frame_info(e->env_page_directory, virtual_address, &ptr_page_table);
+	if (marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE] != 0){
+		*numOfMarkedPagesAfter = marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE];
+		return 1;
+	}
+
+	if (frame != NULL){
+		*numOfMarkedPagesAfter = 0;
+		return 1;
+	}
+
+	return 0;
 }
 
 //=====================================
@@ -214,6 +233,8 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size) {
 			env_page_ws_invalidate(e, va);
 		}
 	}
+
+	marked_page[(virtual_address - USER_HEAP_START) / PAGE_SIZE] = 0;
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }
 

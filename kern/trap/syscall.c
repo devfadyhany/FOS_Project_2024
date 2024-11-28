@@ -314,6 +314,15 @@ void sys_allocate_user_mem(uint32 virtual_address, uint32 size) {
 	return;
 }
 
+int sys_check_marked_page(uint32 virtual_address, int* numOfMarkedPagesAfter) {
+	if (virtual_address == 0) {
+
+		env_exit();
+	}
+
+	return check_marked_page(cur_env, virtual_address, numOfMarkedPagesAfter);
+}
+
 void sys_allocate_chunk(uint32 virtual_address, uint32 size, uint32 perms) {
 	//TODO: [PROJECT'24.MS1 - #03] [2] SYSTEM CALLS - Params Validation
 
@@ -347,6 +356,15 @@ int sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable,
 		void* virtual_address) {
 	return createSharedObject(cur_env->env_id, shareName, size, isWritable,
 			virtual_address);
+}
+
+int sys_check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages){
+	if (virtual_address == 0) {
+
+		env_exit();
+	}
+
+	return check_shared_allocated_page(virtual_address, numOfAllocatedPages);
 }
 
 int sys_getSizeOfSharedObject(int32 ownerID, char* shareName) {
@@ -486,6 +504,12 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4,
 	case SYS_allocate_user_mem:
 		sys_allocate_user_mem(a1, a2);
 		return 0;
+		break;
+	case SYS_check_marked_page:
+		return (int) sys_check_marked_page(a1, (int*)a2);
+		break;
+	case SYS_check_shared_allocated_page:
+		return (int) sys_check_shared_allocated_page(a1,(int*)a2);
 		break;
 		//======================================================================
 	case SYS_cputs:

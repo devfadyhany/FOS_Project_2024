@@ -72,6 +72,7 @@ void* 	sys_sbrk(int increment);
 //User Heap
 void 	sys_free_user_mem(uint32 virtual_address, uint32 size);
 void	sys_allocate_user_mem(uint32 virtual_address, uint32 size);
+int 	sys_check_marked_page(uint32 virtual_address, int* numOfMarkedPagesAfter);
 void	sys_allocate_chunk(uint32 virtual_address, uint32 size, uint32 perms);
 void 	sys_move_user_mem(uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size);
 uint32 	sys_isUHeapPlacementStrategyFIRSTFIT();
@@ -89,6 +90,7 @@ int 	sys_pf_calculate_allocated_pages(void);
 //Sharing
 //2017
 int 	sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable, void* virtual_address);
+int 	sys_check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages);
 int 	sys_getSizeOfSharedObject(int32 ownerID, char* shareName);
 int 	sys_getSharedObject(int32 ownerID, char* shareName, void* virtual_address );
 int 	sys_freeSharedObject(int32 sharedObjectID, void *startVA);

@@ -1,11 +1,5 @@
 #include <inc/lib.h>
 
-typedef struct{
-	uint32 virtual_address;
-	int num_of_marked_pages;
-	int shared_object_id;
-}MarkedElement;
-MarkedElement marked_page[131072];
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
@@ -42,14 +36,16 @@ void* malloc(uint32 size) {
 				break;
 			}
 
-			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+			int numOfMarkedPagesAfter = 0;
+			int page_is_marked = sys_check_marked_page(i, &numOfMarkedPagesAfter);
 
-			MarkedElement current_page = marked_page[page_num];
-
-			if (current_page.virtual_address != 0) {
+			if (page_is_marked == 1) {
 				continious_page_counter = 0;
 				start_page = 0;
-				uint32 marked_size = (current_page.num_of_marked_pages) * (PAGE_SIZE);
+				if (numOfMarkedPagesAfter == 0){
+					continue;
+				}
+				uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
 				i += marked_size - PAGE_SIZE;
 				continue;
 			}
@@ -65,14 +61,6 @@ void* malloc(uint32 size) {
 		}
 
 		sys_allocate_user_mem(start_page, size);
-
-		for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
-			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
-
-			marked_page[page_num].virtual_address = i;
-		}
-
-		marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].num_of_marked_pages = num_of_required_pages;
 
 		return (void*) start_page;
 	}
@@ -96,18 +84,18 @@ void free(void* virtual_address) {
 		free_block(virtual_address);
 		return;
 	} else if (va >= ((uint32) (myEnv->Hard_limit) + PAGE_SIZE)&& va <= USER_HEAP_MAX) {
-		int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
-		int num_of_pages = marked_page[start_page_index].num_of_marked_pages;
+		int numOfMarkedPagesAfter = 0;
+		int page_is_marked = sys_check_marked_page(va, &numOfMarkedPagesAfter);
 
-		for (uint32 i = va; i < va + (num_of_pages * PAGE_SIZE); i += PAGE_SIZE) {
-			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
-
-			marked_page[page_num].virtual_address = 0;
-			marked_page[page_num].num_of_marked_pages = 0;
-			marked_page[page_num].shared_object_id = 0;
+		if (page_is_marked == 0){
+			return;
 		}
 
-		sys_free_user_mem(va, num_of_pages * PAGE_SIZE);
+		for (uint32 i = va; i < va + (numOfMarkedPagesAfter * PAGE_SIZE); i += PAGE_SIZE) {
+			int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+		}
+
+		sys_free_user_mem(va, numOfMarkedPagesAfter * PAGE_SIZE);
 	} else {
 		panic("invalid address");
 	}
@@ -130,17 +118,23 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
 
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
 		if (continious_page_counter == num_of_required_pages) {
 			break;
 		}
 
-		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+		int numOfMarkedPagesAfter = 0;
+		int page_is_marked = sys_check_shared_allocated_page(i, &numOfMarkedPagesAfter);
 
-		if (marked_page[page_num].virtual_address != 0) {
+		if (page_is_marked != 0) {
 			continious_page_counter = 0;
 			start_page = 0;
-			uint32 marked_size = (marked_page[page_num].num_of_marked_pages) * (PAGE_SIZE);
+
+			if (numOfMarkedPagesAfter == 0){
+				continue;
+			}
+
+			uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
 			i += marked_size - PAGE_SIZE;
 			continue;
 		}
@@ -149,10 +143,9 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 			start_page = i;
 		}
 		continious_page_counter++;
-
 	}
 
-	if (continious_page_counter != num_of_required_pages) {
+	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
 		return NULL;
 	}
 
@@ -162,14 +155,7 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 		return NULL;
 	}
 
-	for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
-		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
-
-		marked_page[page_num].virtual_address = i;
-	}
-
-	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].num_of_marked_pages = num_of_required_pages;
-	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].shared_object_id = res;
+//	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].shared_object_id = res;
 
 	return (void*) start_page;
 
@@ -190,17 +176,23 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
 		if (continious_page_counter == num_of_required_pages) {
 			break;
 		}
 
-		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
+		int numOfMarkedPagesAfter = 0;
+		int page_is_marked = sys_check_shared_allocated_page(i, &numOfMarkedPagesAfter);
 
-		if (marked_page[page_num].virtual_address != 0) {
+		if (page_is_marked != 0) {
 			continious_page_counter = 0;
 			start_page = 0;
-			uint32 marked_size = (marked_page[page_num].num_of_marked_pages) * (PAGE_SIZE);
+
+			if (numOfMarkedPagesAfter == 0){
+				continue;
+			}
+
+			uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
 			i += marked_size - PAGE_SIZE;
 			continue;
 		}
@@ -211,7 +203,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 		continious_page_counter++;
 	}
 
-	if (continious_page_counter != num_of_required_pages) {
+	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
 		return NULL;
 	}
 
@@ -220,14 +212,6 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	if (id == E_SHARED_MEM_NOT_EXISTS) {
 		return NULL;
 	}
-
-	for (uint32 i = start_page; i < start_page + size; i += PAGE_SIZE) {
-		int page_num = (i - USER_HEAP_START) / PAGE_SIZE;
-
-		marked_page[page_num].virtual_address = i;
-	}
-
-	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].num_of_marked_pages = num_of_required_pages;
 
 	return (void*) start_page;
 }
@@ -251,18 +235,18 @@ void sfree(void* virtual_address) {
 	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [USER SIDE] - sfree()
 	// Write your code here, remove the panic and write your code
 	// panic("sfree() is not implemented yet...!!");
-	uint32 va = (uint32)virtual_address;
-	int page_num = (va - USER_HEAP_START)/PAGE_SIZE;
-
-	int sharedObjectId = marked_page[page_num].shared_object_id;
-
-	sys_freeSharedObject(sharedObjectId, virtual_address);
-
-	for (int i = page_num; i < marked_page[page_num].num_of_marked_pages; i++){
-		marked_page[page_num].virtual_address = 0;
-		marked_page[page_num].num_of_marked_pages = 0;
-		marked_page[page_num].shared_object_id = 0;
-	}
+//	uint32 va = (uint32)virtual_address;
+//	int page_num = (va - USER_HEAP_START)/PAGE_SIZE;
+//
+//	int sharedObjectId = marked_page[page_num].shared_object_id;
+//
+//	sys_freeSharedObject(sharedObjectId, virtual_address);
+//
+//	for (int i = page_num; i < marked_page[page_num].num_of_marked_pages; i++){
+//		marked_page[page_num].virtual_address = 0;
+//		marked_page[page_num].num_of_marked_pages = 0;
+//		marked_page[page_num].shared_object_id = 0;
+//	}
 }
 
 //=================================

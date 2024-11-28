@@ -123,6 +123,10 @@ int sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable, void*
 	return syscall(SYS_create_shared_object,(uint32)shareName, (uint32)size, isWritable, (uint32)virtual_address,  0);
 }
 
+int sys_check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages){
+	return syscall(SYS_check_shared_allocated_page, virtual_address, (uint32)numOfAllocatedPages, 0, 0, 0);
+}
+
 //2017:
 int sys_getSizeOfSharedObject(int32 ownerID, char* shareName)
 {
@@ -325,3 +329,7 @@ void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 	return;
 }
 
+int sys_check_marked_page(uint32 virtual_address, int* numOfMarkedPagesAfter){
+
+	return syscall(SYS_check_marked_page, virtual_address, (uint32)numOfMarkedPagesAfter, 0, 0, 0);
+}
