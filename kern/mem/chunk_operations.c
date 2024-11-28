@@ -205,8 +205,7 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size) {
 	uint32 end_va = ROUNDUP(virtual_address + size, PAGE_SIZE);
 
 	for (uint32 va = start_va; va < end_va; va += PAGE_SIZE) {
-		uint32 va_permissions = pt_get_page_permissions(e->env_page_directory,
-				va);
+		uint32 va_permissions = pt_get_page_permissions(e->env_page_directory,va);
 
 		pt_set_page_permissions(e->env_page_directory, va, 0, PERM_MARKED);
 		pf_remove_env_page(e, va);

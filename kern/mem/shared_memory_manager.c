@@ -185,6 +185,8 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 		newShare->framesStorage[i] = frame;
 	}
 
+	newShare->framesStorage[0]->process_num_of_pages = numOfFrames;
+
 	acquire_spinlock(&AllShares.shareslock);
 	LIST_INSERT_HEAD(&(AllShares.shares_list), newShare);
 	release_spinlock(&AllShares.shareslock);
@@ -212,8 +214,7 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 	uint32 va = (uint32) virtual_address;
 
 	struct FrameInfo * frame;
-	int i = 0;
-	while (sharedObj->framesStorage[i] != NULL) {
+	for (int i = 0; i < sharedObj->framesStorage[0]->process_num_of_pages; i++){
 		frame = sharedObj->framesStorage[i];
 		if (sharedObj->isWritable == 1) {
 			map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
@@ -222,7 +223,6 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 		}
 		frame->references++;
 		va += PAGE_SIZE;
-		i++;
 	}
 
 	sharedObj->references++;
@@ -243,9 +243,11 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 void free_share(struct Share* ptrShare) {
 	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [KERNEL SIDE] - free_share()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("free_share is not implemented yet");
+	//panic("free_share is not implemented yet");
 	//Your Code is Here...
-
+	LIST_REMOVE(&(AllShares.shares_list), ptrShare);
+//	free(ptrShare->framesStorage);
+//	free(ptrShare);
 }
 //========================
 // [B2] Free Share Object:
@@ -253,7 +255,23 @@ void free_share(struct Share* ptrShare) {
 int freeSharedObject(int32 sharedObjectID, void *startVA) {
 	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [KERNEL SIDE] - freeSharedObject()
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("freeSharedObject is not implemented yet");
+	//panic("freeSharedObject is not implemented yet");
 	//Your Code is Here...
+	struct Env* myenv = get_cpu_proc(); //The calling environment
 
+	struct Share* share = NULL;
+
+	LIST_FOREACH(share, &(AllShares.shares_list))
+	{
+		if (share->ownerID == sharedObjectID) {
+			unmap_frame(myenv->env_page_directory, (uint32)share);
+			tlb_invalidate(myenv->env_page_directory, share);
+		}
+	}
+
+	if (LIST_EMPTY(&(AllShares.shares_list))){
+		free_share(share);
+	}
+
+	return 0;
 }

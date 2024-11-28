@@ -12,6 +12,8 @@
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
 
 int num_of_processes_in_kernel = 0;
+uint32 last_free_place = 0;
+int first_time_allocating = 1;
 
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
@@ -112,29 +114,37 @@ void* kmalloc(unsigned int size)
 
 			int remaining_process = num_of_processes_in_kernel;
 
-			for (uint32 i = (uint32)Hard_limit + PAGE_SIZE; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
-				if (continious_page_counter == num_of_required_pages){
-					break;
-				}
-
-				if (remaining_process == 0 && ((KERNEL_HEAP_MAX - i) / PAGE_SIZE) >= num_of_required_pages){
-					continious_page_counter = num_of_required_pages;
-					start_page = i;
-					break;
-				}
-
-				assigned_frame = get_frame_info(ptr_page_directory, i, &ptr_page_table);
-
-				if (assigned_frame == NULL){
-					if (start_page == 0){
-						start_page = i;
+			if (last_free_place == 0 || first_time_allocating == 0){
+				for (uint32 i = (uint32)Hard_limit + PAGE_SIZE; i < KERNEL_HEAP_MAX; i += PAGE_SIZE){
+					if (continious_page_counter == num_of_required_pages){
+						break;
 					}
-					continious_page_counter++;
-				}else {
-					continious_page_counter = 0;
-					start_page = 0;
-					i += (assigned_frame->process_num_of_pages) * PAGE_SIZE - PAGE_SIZE;
-					remaining_process--;
+
+					if (remaining_process == 0 && ((KERNEL_HEAP_MAX - i) / PAGE_SIZE) >= num_of_required_pages){
+						continious_page_counter = num_of_required_pages;
+						start_page = i;
+						break;
+					}
+
+					assigned_frame = get_frame_info(ptr_page_directory, i, &ptr_page_table);
+
+					if (assigned_frame == NULL){
+						if (start_page == 0){
+							start_page = i;
+						}
+						continious_page_counter++;
+					}else {
+						continious_page_counter = 0;
+						start_page = 0;
+						i += (assigned_frame->process_num_of_pages) * PAGE_SIZE - PAGE_SIZE;
+						remaining_process--;
+					}
+				}
+			}else {
+				start_page = last_free_place;
+
+				if (((KERNEL_HEAP_MAX - start_page) / PAGE_SIZE) >= num_of_required_pages){
+					continious_page_counter = num_of_required_pages;
 				}
 			}
 
@@ -142,17 +152,12 @@ void* kmalloc(unsigned int size)
 				return NULL;
 			}
 
-			int counter = 0;
 			struct FrameInfo * iterator = NULL;
 			uint32 current_page_address;
 
-			LIST_FOREACH(iterator, &MemFrameLists.free_frame_list){
-				if (counter == num_of_required_pages){
-					break;
-				}
-
+			for (int i = 0; i < num_of_required_pages; i++){
 				allocate_frame(&iterator);
-				current_page_address = start_page + (counter * PAGE_SIZE);
+				current_page_address = start_page + (i * PAGE_SIZE);
 				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE | PERM_PRESENT);
 
 				iterator->mapped_page = current_page_address;
@@ -161,11 +166,11 @@ void* kmalloc(unsigned int size)
 					iterator->process_start_page = start_page;
 					iterator->process_num_of_pages = num_of_required_pages;
 				}
-
-				counter++;
 			}
 
 			num_of_processes_in_kernel++;
+
+			last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
 
 			return (void*)start_page;
 
@@ -217,6 +222,8 @@ void kfree(void* virtual_address)
             address += PAGE_SIZE;
         }
         num_of_processes_in_kernel--;
+        last_free_place = 0;
+        first_time_allocating = 0;
     }
     else {
 //         Invalid address, should panic
