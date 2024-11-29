@@ -358,13 +358,13 @@ int sys_createSharedObject(char* shareName, uint32 size, uint8 isWritable,
 			virtual_address);
 }
 
-int sys_check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages){
+int sys_check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages, int* sharedObjectId){
 	if (virtual_address == 0) {
 
 		env_exit();
 	}
 
-	return check_shared_allocated_page(virtual_address, numOfAllocatedPages);
+	return check_shared_allocated_page(virtual_address, numOfAllocatedPages, sharedObjectId);
 }
 
 int sys_getSizeOfSharedObject(int32 ownerID, char* shareName) {
@@ -509,7 +509,7 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4,
 		return (int) sys_check_marked_page(a1, (int*)a2);
 		break;
 	case SYS_check_shared_allocated_page:
-		return (int) sys_check_shared_allocated_page(a1,(int*)a2);
+		return (int) sys_check_shared_allocated_page(a1,(int*)a2, (int*)a3);
 		break;
 		//======================================================================
 	case SYS_cputs:

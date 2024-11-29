@@ -186,6 +186,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 	}
 
 	newShare->framesStorage[0]->process_num_of_pages = numOfFrames;
+	newShare->framesStorage[0]->shared_object_id = newShare->ID;
 
 	acquire_spinlock(&AllShares.shareslock);
 	LIST_INSERT_HEAD(&(AllShares.shares_list), newShare);
@@ -196,7 +197,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 	return newShare->ID;
 }
 
-int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages){
+int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages, int* sharedObjectId){
 	struct Env* myenv = get_cpu_proc();
 	uint32* ptr_page_table = NULL;
 	struct FrameInfo* frame = get_frame_info(myenv->env_page_directory, virtual_address, &ptr_page_table);
@@ -204,6 +205,7 @@ int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages
 
 	if (frame != NULL){
 		*numOfAllocatedPages = frame->process_num_of_pages;
+		*sharedObjectId = frame->shared_object_id;
 		return 1;
 	}
 
@@ -242,7 +244,7 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 		} else {
 			map_frame(myenv->env_page_directory, frame, va, PERM_PRESENT | PERM_USER);
 		}
-		frame->references++;
+
 		va += PAGE_SIZE;
 	}
 
