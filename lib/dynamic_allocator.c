@@ -473,11 +473,13 @@ void *realloc_block_FF(void* va, uint32 new_size) {
 				set_block_data(va + new_size,
 						(old_size + next_element_size) - new_size, 0);
 			}
+
 			return va;
 		} else {
 			free_block(va);
-			va = alloc_block_FF(new_size - (2 * sizeof(int)));
-			return va;
+			void* new_va = alloc_block_FF(new_size - (2 * sizeof(int)));
+			memcpy(new_va, va, old_size);
+			return new_va;
 		}
 	}
 
