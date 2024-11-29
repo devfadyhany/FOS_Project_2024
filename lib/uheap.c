@@ -18,8 +18,11 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 		if (checkMark == 1){
 			check_current_page = sys_check_marked_page(i, &numOfPagesAfter);
 		}else{
-			check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter);
+//			int sharedObjectId = 0;
+			check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter, 0);
 		}
+
+//		cprintf("test\n");
 
 		if (check_current_page == 1) {
 			continious_page_counter = 0;
@@ -127,6 +130,10 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
 	// Write your code here, remove the panic and write your code
 //	panic("smalloc() is not implemented yet...!!");
+	if (size > USER_HEAP_MAX - (uint32)(myEnv->Hard_limit + PAGE_SIZE)){
+		return NULL;
+	}
+
 	uint32 start_page = SearchUheapFF(size, 1);
 
 	if (start_page == 0){

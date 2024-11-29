@@ -220,6 +220,7 @@ struct FrameInfo {
 	uint32 mapped_page;
 	uint32 process_start_page;
 	int process_num_of_pages;
+	int shared_object_id;
 };
 
 #endif /* !__ASSEMBLER__ */
