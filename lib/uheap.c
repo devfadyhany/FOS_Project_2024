@@ -3,7 +3,47 @@
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
+uint32 SearchUheapFF(uint32 size, int checkMark){
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	int continious_page_counter = 0;
+	uint32 start_page = 0;
 
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
+		if (continious_page_counter == num_of_required_pages) {
+			break;
+		}
+
+		int numOfPagesAfter = 0;
+		int check_current_page;
+		if (checkMark == 1){
+			check_current_page = sys_check_marked_page(i, &numOfPagesAfter);
+		}else{
+			check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter);
+		}
+
+		if (check_current_page == 1) {
+			continious_page_counter = 0;
+			start_page = 0;
+			if (numOfPagesAfter == 0){
+				continue;
+			}
+			uint32 marked_size = (numOfPagesAfter) * (PAGE_SIZE);
+			i += marked_size - PAGE_SIZE;
+			continue;
+		}
+
+		if (start_page == 0) {
+			start_page = i;
+		}
+		continious_page_counter++;
+	}
+
+	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
+		return 0;
+	}
+
+	return start_page;
+}
 //=============================================
 // [1] CHANGE THE BREAK LIMIT OF THE USER HEAP:
 //=============================================
@@ -27,36 +67,9 @@ void* malloc(uint32 size) {
 	if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
 		return alloc_block_FF(size);
 	} else {
-		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-		int continious_page_counter = 0;
-		uint32 start_page = 0;
+		uint32 start_page = SearchUheapFF(size, 1);
 
-		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
-			if (continious_page_counter == num_of_required_pages) {
-				break;
-			}
-
-			int numOfMarkedPagesAfter = 0;
-			int page_is_marked = sys_check_marked_page(i, &numOfMarkedPagesAfter);
-
-			if (page_is_marked == 1) {
-				continious_page_counter = 0;
-				start_page = 0;
-				if (numOfMarkedPagesAfter == 0){
-					continue;
-				}
-				uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
-				i += marked_size - PAGE_SIZE;
-				continue;
-			}
-
-			if (start_page == 0) {
-				start_page = i;
-			}
-			continious_page_counter++;
-		}
-
-		if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
+		if (start_page == 0){
 			return NULL;
 		}
 
@@ -114,38 +127,9 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
 	// Write your code here, remove the panic and write your code
 //	panic("smalloc() is not implemented yet...!!");
-	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	int continious_page_counter = 0;
-	uint32 start_page = 0;
+	uint32 start_page = SearchUheapFF(size, 1);
 
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
-		if (continious_page_counter == num_of_required_pages) {
-			break;
-		}
-
-		int numOfMarkedPagesAfter = 0;
-		int page_is_marked = sys_check_shared_allocated_page(i, &numOfMarkedPagesAfter);
-
-		if (page_is_marked != 0) {
-			continious_page_counter = 0;
-			start_page = 0;
-
-			if (numOfMarkedPagesAfter == 0){
-				continue;
-			}
-
-			uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
-			i += marked_size - PAGE_SIZE;
-			continue;
-		}
-
-		if (start_page == 0) {
-			start_page = i;
-		}
-		continious_page_counter++;
-	}
-
-	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
+	if (start_page == 0){
 		return NULL;
 	}
 
@@ -154,8 +138,6 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE) {
 		return NULL;
 	}
-
-//	marked_page[(start_page - USER_HEAP_START) / PAGE_SIZE].shared_object_id = res;
 
 	return (void*) start_page;
 
@@ -173,37 +155,9 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 		return NULL;
 	}
 	// [3] search ff for space
-	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	int continious_page_counter = 0;
-	uint32 start_page = 0;
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
-		if (continious_page_counter == num_of_required_pages) {
-			break;
-		}
+	uint32 start_page = SearchUheapFF(size, 1);
 
-		int numOfMarkedPagesAfter = 0;
-		int page_is_marked = sys_check_shared_allocated_page(i, &numOfMarkedPagesAfter);
-
-		if (page_is_marked != 0) {
-			continious_page_counter = 0;
-			start_page = 0;
-
-			if (numOfMarkedPagesAfter == 0){
-				continue;
-			}
-
-			uint32 marked_size = (numOfMarkedPagesAfter) * (PAGE_SIZE);
-			i += marked_size - PAGE_SIZE;
-			continue;
-		}
-
-		if (start_page == 0) {
-			start_page = i;
-		}
-		continious_page_counter++;
-	}
-
-	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
+	if (start_page == 0){
 		return NULL;
 	}
 
