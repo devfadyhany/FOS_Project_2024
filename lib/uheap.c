@@ -218,7 +218,6 @@ void sfree(void* virtual_address) {
 			int page_is_marked = sys_check_shared_allocated_page(va, &num_of_pages, &sharedObjectID);
 
 		    if (sharedObjectID <= 0) {
-		        panic("Attempt to free unallocated or invalid shared memory");
 		        return;
 		    }
 
