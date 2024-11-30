@@ -292,8 +292,8 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 		int disk_page = pf_read_env_page(faulted_env, (uint32*) fault_va);
 
 		if (disk_page == E_PAGE_NOT_EXIST_IN_PF) {
-			if (!(fault_va >= USER_HEAP_START && fault_va <= USER_HEAP_MAX)
-					&& !(fault_va >= USTACKBOTTOM && fault_va <= USTACKTOP)) {
+			if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX)
+					&& !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)) {
 				unmap_frame(faulted_env->env_page_directory, fault_va);
 				env_exit();
 			}
