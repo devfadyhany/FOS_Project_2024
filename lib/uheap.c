@@ -8,7 +8,7 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
 
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i <= USER_HEAP_MAX; i += PAGE_SIZE) {
+	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
 		if (continious_page_counter == num_of_required_pages) {
 			break;
 		}
@@ -22,7 +22,6 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 			check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter, 0);
 		}
 
-//		cprintf("test\n");
 
 		if (check_current_page == 1) {
 			continious_page_counter = 0;
@@ -44,7 +43,6 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
 		return 0;
 	}
-
 	return start_page;
 }
 //=============================================
@@ -133,19 +131,16 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	if (size > USER_HEAP_MAX - (uint32)(myEnv->Hard_limit + PAGE_SIZE)){
 		return NULL;
 	}
-
-	uint32 start_page = SearchUheapFF(size, 1);
+	uint32 start_page = SearchUheapFF(size, 0);
 
 	if (start_page == 0){
 		return NULL;
 	}
-
 	int res = sys_createSharedObject(sharedVarName, size, isWritable,(void*) start_page);
 
 	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE) {
 		return NULL;
 	}
-
 	return (void*) start_page;
 
 }
@@ -208,6 +203,34 @@ void sfree(void* virtual_address) {
 //		marked_page[page_num].num_of_marked_pages = 0;
 //		marked_page[page_num].shared_object_id = 0;
 //	}
+
+
+
+	uint32 va = (uint32) virtual_address;
+		    if (va < USER_HEAP_START || va >= USER_HEAP_MAX) {
+		        panic("Invalid virtual address passed to sfree()");
+		        return;
+		    }
+		    int num_of_pages = 0;
+		    int sharedObjectID = 0;
+		    int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
+
+			int page_is_marked = sys_check_shared_allocated_page(va, &num_of_pages, &sharedObjectID);
+
+		    if (sharedObjectID <= 0) {
+		        panic("Attempt to free unallocated or invalid shared memory");
+		        return;
+		    }
+
+		    int result = sys_freeSharedObject(sharedObjectID, (void*)va);
+		    if (result != 0) {
+		        panic("Failed to free shared object in the kernel");
+		        return;
+		    }
+
+
+
+
 }
 
 //=================================
