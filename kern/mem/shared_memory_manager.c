@@ -339,7 +339,6 @@ int freeSharedObject(int32 sharedObjectID, void *startVA) {
 		}
 	}
 	share->framesStorage[0]->process_num_of_pages = 0;
-	share->framesStorage[0]->shared_object_id = 0;
 	share->references--;
 
 	if (share->references == 0) {

@@ -134,12 +134,11 @@ _main(void)
 
 
 		//Checking boundaries of page tables
-		cprintf("2abl elsmalloc\n");
 		freeFrames = sys_calculate_free_frames() ;
 		w = smalloc("w", 3 * Mega - 1*kilo, 1);
 		u = smalloc("u", 7 * Mega - 1*kilo, 1);
 		o = smalloc("o", 2 * Mega + 1*kilo, 1);
-		cprintf("ba3d elsmalloc\n");
+
 		expected = 3073+4+4 ; /*3073pages +4tables +4pages for framesStorage by Kernel Page Allocator since it exceed 2KB size*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff < expected || diff > expected +1+1 /*extra 1 page & 1 table for sbrk (at max)*/)
