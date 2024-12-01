@@ -157,7 +157,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 		return NULL;
 	}
 	// [3] search ff for space
-	uint32 start_page = SearchUheapFF(size, 1);
+	uint32 start_page = SearchUheapFF(size, 0);
 
 	if (start_page == 0){
 		return NULL;
