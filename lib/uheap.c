@@ -1,5 +1,9 @@
 #include <inc/lib.h>
 
+int num_of_processes_in_kernel = 0;
+uint32 last_free_place = 0;
+int first_time_allocating = 1;
+
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
@@ -8,37 +12,46 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
 
-	for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
-		if (continious_page_counter == num_of_required_pages) {
-			break;
-		}
+	if (last_free_place == 0 || first_time_allocating == 0){
+		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
+			if (continious_page_counter == num_of_required_pages) {
+				break;
+			}
 
-		int numOfPagesAfter = 0;
-		int check_current_page;
-		if (checkMark == 1){
-			check_current_page = sys_check_marked_page(i, &numOfPagesAfter);
-		}else{
-//			int sharedObjectId = 0;
-			check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter, 0);
-		}
+			int numOfPagesAfter = 0;
+			int check_current_page;
+			if (checkMark == 1){
+				check_current_page = sys_check_marked_page(i, &numOfPagesAfter);
+			}else{
+	//			int sharedObjectId = 0;
+				check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter, 0);
+			}
 
 
-		if (check_current_page == 1) {
-			continious_page_counter = 0;
-			start_page = 0;
-			if (numOfPagesAfter == 0){
+			if (check_current_page == 1) {
+				continious_page_counter = 0;
+				start_page = 0;
+				if (numOfPagesAfter == 0){
+					continue;
+				}
+				uint32 marked_size = (numOfPagesAfter) * (PAGE_SIZE);
+				i += marked_size - PAGE_SIZE;
 				continue;
 			}
-			uint32 marked_size = (numOfPagesAfter) * (PAGE_SIZE);
-			i += marked_size - PAGE_SIZE;
-			continue;
-		}
 
-		if (start_page == 0) {
-			start_page = i;
+			if (start_page == 0) {
+				start_page = i;
+			}
+			continious_page_counter++;
 		}
-		continious_page_counter++;
+	}else {
+		start_page = last_free_place;
+
+		if (((USER_HEAP_MAX - start_page) / PAGE_SIZE) >= num_of_required_pages){
+			continious_page_counter = num_of_required_pages;
+		}
 	}
+
 
 	if (continious_page_counter != num_of_required_pages || size > (USER_HEAP_MAX - start_page)) {
 		return 0;
@@ -76,6 +89,10 @@ void* malloc(uint32 size) {
 
 		sys_allocate_user_mem(start_page, size);
 
+		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+		num_of_processes_in_kernel++;
+		last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+
 		return (void*) start_page;
 	}
 	return NULL;
@@ -110,6 +127,11 @@ void free(void* virtual_address) {
 		}
 
 		sys_free_user_mem(va, numOfMarkedPagesAfter * PAGE_SIZE);
+
+		num_of_processes_in_kernel--;
+		last_free_place = 0;
+		first_time_allocating = 0;
+
 	} else {
 		panic("invalid address");
 	}
@@ -141,6 +163,11 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE) {
 		return NULL;
 	}
+
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	num_of_processes_in_kernel++;
+	last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+
 	return (void*) start_page;
 
 }
@@ -168,6 +195,10 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	if (id == E_SHARED_MEM_NOT_EXISTS) {
 		return NULL;
 	}
+
+	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	num_of_processes_in_kernel++;
+	last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
 
 	return (void*) start_page;
 }
