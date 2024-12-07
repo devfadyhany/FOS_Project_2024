@@ -30,7 +30,7 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	for(uint32 i = daStart; i < (uint32)Break; i += PAGE_SIZE){
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
-		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE);
 
 		frame_info->mapped_page = i;
 	}
@@ -81,7 +81,7 @@ void* sbrk(int numOfPages)
                 	   int is_allocate= allocate_frame(&frame_info);
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
-                	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+                	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE);
                 	   		        frame_info->mapped_page = i;
                 	   }
                 	   else

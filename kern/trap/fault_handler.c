@@ -191,22 +191,22 @@ void fault_handler(struct Trapframe *tf) {
 			//TODO: [PROJECT'24.MS2 - #08] [2] FAULT HANDLER I - Check for invalid pointers
 			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
 			//your code is here
-			uint32 va_permissions = pt_get_page_permissions(
-					faulted_env->env_page_directory,
-					ROUNDDOWN(fault_va, PAGE_SIZE));
+			uint32 va_permissions = pt_get_page_permissions(faulted_env->env_page_directory, ROUNDDOWN(fault_va, PAGE_SIZE));
 
 			if (fault_va >= USER_HEAP_START && fault_va <= USER_HEAP_MAX) {
 				if (!(va_permissions & PERM_MARKED)) {
+					cprintf("un-marked\n");
 					env_exit();
 				}
 			}
 
 			if (fault_va >= USTACKTOP) {
+				cprintf("kernel page\n");
 				env_exit();
 			}
 
-			if ((va_permissions & PERM_PRESENT)
-					&& (va_permissions & PERM_WRITEABLE)) {
+			if ((va_permissions & PERM_PRESENT) && (va_permissions & PERM_WRITEABLE)) {
+				cprintf("exist & writable\n");
 				env_exit();
 			}
 			/*============================================================================================*/
@@ -286,14 +286,12 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 
 		struct FrameInfo* frame;
 		allocate_frame(&frame);
-		map_frame(faulted_env->env_page_directory, frame, fault_va,
-		PERM_WRITEABLE | PERM_USER | PERM_PRESENT);
+		map_frame(faulted_env->env_page_directory, frame, fault_va, PERM_WRITEABLE | PERM_USER);
 
 		int disk_page = pf_read_env_page(faulted_env, (uint32*) fault_va);
 
 		if (disk_page == E_PAGE_NOT_EXIST_IN_PF) {
-			if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX)
-					&& !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)) {
+			if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX) && !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)) {
 				unmap_frame(faulted_env->env_page_directory, fault_va);
 				env_exit();
 			}
@@ -317,34 +315,55 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 		//panic("page_fault_handler() Replacement is not implemented yet...!!");
 		if (isPageReplacmentAlgorithmNchanceCLOCK()){
 			int replace_flag = 0;
-			struct WorkingSetElement* ptr_last_element = faulted_env->page_last_WS_element;
+			uint32* ptr_page_table = NULL;
 
 			while(replace_flag == 0){
-				int va_permissions = pt_get_page_permissions(faulted_env->env_page_directory, (uint32)ptr_last_element);
+				victimWSElement = faulted_env->page_last_WS_element;
+				int va_permissions = pt_get_page_permissions(faulted_env->env_page_directory, victimWSElement->virtual_address);
 
 				if (va_permissions & PERM_USED){
 					// Clear use and also clear counter
-					pt_set_page_permissions(faulted_env->env_page_directory, (uint32)ptr_last_element, 0, PERM_USED);
-					ptr_last_element->sweeps_counter = 0;
+					pt_set_page_permissions(faulted_env->env_page_directory, victimWSElement->virtual_address, 0, PERM_USED);
+					victimWSElement->sweeps_counter = 0;
 				}else {
-					ptr_last_element->sweeps_counter++;
 					if (page_WS_max_sweeps > 0){
 						// NORMAL
-						if (ptr_last_element->sweeps_counter == page_WS_max_sweeps){
+						victimWSElement->sweeps_counter++;
+						if (victimWSElement->sweeps_counter >= page_WS_max_sweeps){
 							// Replace Page
-							replace_flag = 1;
+							replace_page(faulted_env, fault_va, victimWSElement, &replace_flag);
 						}
 					}else if (page_WS_max_sweeps < 0){
 						// MODIFIED
-						if (ptr_last_element->sweeps_counter == (page_WS_max_sweeps + 1)){
-							// Replace Page
-							replace_flag = 1;
+						victimWSElement->sweeps_counter--;
+						if (va_permissions & PERM_MODIFIED){
+							if (victimWSElement->sweeps_counter <= (page_WS_max_sweeps - 1)){
+								cprintf("Replacing Modified\n");
+								struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victimWSElement->virtual_address, &ptr_page_table);
+
+								// Update Page On Disk
+								pf_update_env_page(faulted_env, victimWSElement->virtual_address, victim_frame);
+
+								// Replace Page
+								replace_page(faulted_env, fault_va, victimWSElement, &replace_flag);
+							}
+						}else {
+							if (victimWSElement->sweeps_counter <= page_WS_max_sweeps){
+								cprintf("Replacing Normal\n");
+								// Replace Page
+								replace_page(faulted_env, fault_va, victimWSElement, &replace_flag);
+							}
 						}
 					}
 				}
-				ptr_last_element = ptr_last_element->prev_next_info.le_next;
-			}
 
+				faulted_env->page_last_WS_element = victimWSElement->prev_next_info.le_next;
+				if (faulted_env->page_last_WS_element == NULL) {
+					faulted_env->page_last_WS_element = LIST_FIRST(&faulted_env->page_WS_list);
+				}
+
+				env_page_ws_print(faulted_env);
+			}
 		}
 	}
 }
@@ -355,3 +374,14 @@ void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va) {
 	panic("__page_fault_handler_with_buffering() is not implemented yet...!!");
 }
 
+void replace_page(struct Env* faulted_env, uint32 fault_va, struct WorkingSetElement* victimWSElement, int* replace_flag){
+	uint32* ptr_page_table;
+	struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victimWSElement->virtual_address, &ptr_page_table);
+
+	victimWSElement->virtual_address = ROUNDDOWN(fault_va, PAGE_SIZE);
+	victimWSElement->sweeps_counter = 0;
+
+	map_frame(faulted_env->env_page_directory, victim_frame, victimWSElement->virtual_address, PERM_WRITEABLE | PERM_USER);
+
+	*replace_flag = 1;
+}

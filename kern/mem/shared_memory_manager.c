@@ -65,8 +65,7 @@ inline struct FrameInfo** create_frames_storage(int numOfFrames) {
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
 	//panic("create_frames_storage is not implemented yet");
 	//Your Code is Here...
-	struct FrameInfo** framesStorage = (struct FrameInfo**) kmalloc(
-			numOfFrames * sizeof(struct FrameInfo*));
+	struct FrameInfo** framesStorage = (struct FrameInfo**) kmalloc(numOfFrames * sizeof(struct FrameInfo*));
 
 	if (framesStorage == NULL) {
 		return NULL;
@@ -183,8 +182,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 		if(ptr_page_table == NULL){
 			create_page_table(myenv->env_page_directory, va);
 		}
-		map_frame(myenv->env_page_directory, frame, va,
-				PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
+		map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE | PERM_USER);
 		newShare->framesStorage[i] = frame;
 	}
 	newShare->framesStorage[0]->process_num_of_pages = numOfFrames;
@@ -245,11 +243,9 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 	for (int i = 0; i < ROUNDUP(sharedObj->size, PAGE_SIZE) / PAGE_SIZE; i++) {
 		frame = sharedObj->framesStorage[i];
 		if (sharedObj->isWritable == 1) {
-			map_frame(myenv->env_page_directory, frame, va,
-					PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
+			map_frame(myenv->env_page_directory, frame, va, PERM_WRITEABLE | PERM_USER);
 		} else {
-			map_frame(myenv->env_page_directory, frame, va,
-					PERM_PRESENT | PERM_USER);
+			map_frame(myenv->env_page_directory, frame, va, PERM_USER);
 		}
 
 		va += PAGE_SIZE;
