@@ -158,7 +158,9 @@ void* kmalloc(unsigned int size)
 			for (int i = 0; i < num_of_required_pages; i++){
 				allocate_frame(&iterator);
 				current_page_address = start_page + (i * PAGE_SIZE);
-				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE | PERM_PRESENT);
+				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
+
+				uint32 va_permissions = pt_get_page_permissions(ptr_page_directory, current_page_address);
 
 				iterator->mapped_page = current_page_address;
 
