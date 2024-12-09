@@ -30,7 +30,7 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	for(uint32 i = daStart; i < (uint32)Break; i += PAGE_SIZE){
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
-		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+		map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE);
 
 		frame_info->mapped_page = i;
 	}
@@ -81,7 +81,7 @@ void* sbrk(int numOfPages)
                 	   int is_allocate= allocate_frame(&frame_info);
                 	   if(is_allocate!=E_NO_MEM)
                 	   {
-                	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE | PERM_USER);
+                	   		        map_frame(ptr_page_directory, frame_info, i, PERM_WRITEABLE);
                 	   		        frame_info->mapped_page = i;
                 	   }
                 	   else
@@ -158,7 +158,9 @@ void* kmalloc(unsigned int size)
 			for (int i = 0; i < num_of_required_pages; i++){
 				allocate_frame(&iterator);
 				current_page_address = start_page + (i * PAGE_SIZE);
-				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE | PERM_PRESENT);
+				map_frame(ptr_page_directory, iterator, current_page_address, PERM_WRITEABLE);
+
+				uint32 va_permissions = pt_get_page_permissions(ptr_page_directory, current_page_address);
 
 				iterator->mapped_page = current_page_address;
 

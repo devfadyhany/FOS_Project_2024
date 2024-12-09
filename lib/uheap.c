@@ -1,8 +1,8 @@
 #include <inc/lib.h>
 
-int num_of_processes_in_kernel = 0;
-uint32 last_free_place = 0;
-int first_time_allocating = 1;
+int num_of_processes_in_user = 0;
+uint32 last_free_place_user = 0;
+int first_time_allocating_user = 1;
 
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
@@ -12,7 +12,7 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 	int continious_page_counter = 0;
 	uint32 start_page = 0;
 
-	if (last_free_place == 0 || first_time_allocating == 0){
+	if (last_free_place_user == 0 || first_time_allocating_user == 0){
 		for (uint32 i = (uint32) myEnv->Hard_limit + PAGE_SIZE; i < USER_HEAP_MAX; i += PAGE_SIZE) {
 			if (continious_page_counter == num_of_required_pages) {
 				break;
@@ -23,7 +23,6 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 			if (checkMark == 1){
 				check_current_page = sys_check_marked_page(i, &numOfPagesAfter);
 			}else{
-	//			int sharedObjectId = 0;
 				check_current_page = sys_check_shared_allocated_page(i, &numOfPagesAfter, 0);
 			}
 
@@ -45,7 +44,7 @@ uint32 SearchUheapFF(uint32 size, int checkMark){
 			continious_page_counter++;
 		}
 	}else {
-		start_page = last_free_place;
+		start_page = last_free_place_user;
 
 		if (((USER_HEAP_MAX - start_page) / PAGE_SIZE) >= num_of_required_pages){
 			continious_page_counter = num_of_required_pages;
@@ -90,8 +89,8 @@ void* malloc(uint32 size) {
 		sys_allocate_user_mem(start_page, size);
 
 		int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-		num_of_processes_in_kernel++;
-		last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+		num_of_processes_in_user++;
+		last_free_place_user = start_page + (num_of_required_pages * PAGE_SIZE);
 
 		return (void*) start_page;
 	}
@@ -128,9 +127,9 @@ void free(void* virtual_address) {
 
 		sys_free_user_mem(va, numOfMarkedPagesAfter * PAGE_SIZE);
 
-		num_of_processes_in_kernel--;
-		last_free_place = 0;
-		first_time_allocating = 0;
+		num_of_processes_in_user--;
+		last_free_place_user = 0;
+		first_time_allocating_user = 0;
 
 	} else {
 		panic("invalid address");
@@ -158,6 +157,7 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	if (start_page == 0){
 		return NULL;
 	}
+
 	int res = sys_createSharedObject(sharedVarName, size, isWritable,(void*) start_page);
 
 	if (res == E_SHARED_MEM_EXISTS || res == E_NO_SHARE) {
@@ -165,8 +165,8 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	}
 
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	num_of_processes_in_kernel++;
-	last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+	num_of_processes_in_user++;
+	last_free_place_user = start_page + (num_of_required_pages * PAGE_SIZE);
 
 	return (void*) start_page;
 
@@ -197,8 +197,8 @@ void* sget(int32 ownerEnvID, char *sharedVarName) {
 	}
 
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	num_of_processes_in_kernel++;
-	last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+	num_of_processes_in_user++;
+	last_free_place_user = start_page + (num_of_required_pages * PAGE_SIZE);
 
 	return (void*) start_page;
 }
@@ -235,32 +235,29 @@ void sfree(void* virtual_address) {
 //		marked_page[page_num].shared_object_id = 0;
 //	}
 
-
-
 	uint32 va = (uint32) virtual_address;
-		    if (va < USER_HEAP_START || va >= USER_HEAP_MAX) {
-		        panic("Invalid virtual address passed to sfree()");
-		        return;
-		    }
-		    int num_of_pages = 0;
-		    int sharedObjectID = 0;
-		    int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
+	if (va < USER_HEAP_START || va >= USER_HEAP_MAX) {
+		panic("Invalid virtual address passed to sfree()");
+		return;
+	}
+	int num_of_pages = 0;
+	int sharedObjectID = 0;
+	int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
 
-			int page_is_marked = sys_check_shared_allocated_page(va, &num_of_pages, &sharedObjectID);
+	int page_is_marked = sys_check_shared_allocated_page(va, &num_of_pages, &sharedObjectID);
 
-		    if (sharedObjectID <= 0) {
-		        return;
-		    }
+	if (sharedObjectID <= 0) {
+		return;
+	}
 
-		    int result = sys_freeSharedObject(sharedObjectID, (void*)va);
-		    if (result != 0) {
-		        panic("Failed to free shared object in the kernel");
-		        return;
-		    }
-
-
-
-
+	int result = sys_freeSharedObject(sharedObjectID, (void*)va);
+	if (result != 0) {
+		panic("Failed to free shared object in the kernel");
+		return;
+	}
+	num_of_processes_in_user--;
+	last_free_place_user = 0;
+	first_time_allocating_user = 0;
 }
 
 //=================================

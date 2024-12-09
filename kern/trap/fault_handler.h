@@ -70,5 +70,6 @@ void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va);
 void dyn_alloc_local_scope_method(struct Env * curenv, uint32 fault_va);
 void page_fault_handler(struct Env * curenv, uint32 fault_va);
 void table_fault_handler(struct Env * curenv, uint32 fault_va);
+void replace_page(struct Env* faulted_env, uint32 fault_va, struct WorkingSetElement* victimWSElement, int* replace_flag);
 
 #endif /* KERN_FAULT_HANDLER_H_ */
