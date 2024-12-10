@@ -54,6 +54,10 @@ enum
 	SYS_allocate_user_mem,
 	SYS_check_marked_page,
 	SYS_check_shared_allocated_page,
+	SYS_init_queue,
+	SYS_enqueue,
+	SYS_dequeue,
+	SYS_sched_insert_ready,
 	//=====================================================================
 	NSYSCALLS
 };

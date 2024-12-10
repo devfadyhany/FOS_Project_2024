@@ -333,3 +333,25 @@ int sys_check_marked_page(uint32 virtual_address, int* numOfMarkedPagesAfter){
 
 	return syscall(SYS_check_marked_page, virtual_address, (uint32)numOfMarkedPagesAfter, 0, 0, 0);
 }
+
+void sys_init_queue(struct Env_Queue* queue){
+
+	syscall(SYS_init_queue, (uint32)queue, 0, 0, 0, 0);
+	return;
+}
+
+void sys_enqueue(struct Env_Queue* queue){
+
+	syscall(SYS_enqueue, (uint32)queue, 0, 0, 0, 0);
+	return;
+}
+
+void sys_dequeue(struct Env_Queue* queue, struct Env* env){
+	syscall(SYS_dequeue, (uint32)queue, (uint32)env, 0, 0, 0);
+	return;
+}
+
+void sys_sched_insert_ready(struct Env* env){
+	syscall(SYS_sched_insert_ready, (uint32)env, 0, 0, 0, 0);
+	return;
+}
