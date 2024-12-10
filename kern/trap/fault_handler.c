@@ -318,7 +318,8 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 
 			int replace_flag = 0;
 			uint32* ptr_page_table = NULL;
-
+			env_page_ws_print(faulted_env);
+			cprintf("THE FAULTED VA %x\n",fault_va);
 			while(replace_flag == 0){
 				victimWSElement = faulted_env->page_last_WS_element;
 				struct WorkingSetElement* victim_next = victimWSElement->prev_next_info.le_next ;
@@ -334,6 +335,13 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 						// NORMAL
 						victimWSElement->sweeps_counter++;
 						if (victimWSElement->sweeps_counter >= page_WS_max_sweeps){
+							if (va_permissions & PERM_MODIFIED){
+								struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victimWSElement->virtual_address, &ptr_page_table);
+
+								// Update Page On Disk
+								pf_update_env_page(faulted_env, victimWSElement->virtual_address, victim_frame);
+							}
+
 							// Replace Page
 							replace_page(faulted_env, fault_va, victimWSElement, &replace_flag);
 						}
@@ -342,7 +350,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 						victimWSElement->sweeps_counter--;
 						if (va_permissions & PERM_MODIFIED){
 							if (victimWSElement->sweeps_counter <= (page_WS_max_sweeps - 1)){
-								cprintf("Replacing Modified\n");
 								struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victimWSElement->virtual_address, &ptr_page_table);
 
 								// Update Page On Disk
@@ -353,7 +360,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 							}
 						}else {
 							if (victimWSElement->sweeps_counter <= page_WS_max_sweeps){
-								cprintf("Replacing Normal\n");
 								// Replace Page
 								replace_page(faulted_env, fault_va, victimWSElement, &replace_flag);
 							}
@@ -366,7 +372,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va) {
 					faulted_env->page_last_WS_element = LIST_FIRST(&faulted_env->page_WS_list);
 				}
 
-				env_page_ws_print(faulted_env);
 			}
 		}
 	}
@@ -399,7 +404,7 @@ void replace_page(struct Env* faulted_env, uint32 fault_va, struct WorkingSetEle
 
 	if (disk_page == E_PAGE_NOT_EXIST_IN_PF) {
 		if (!(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX) && !(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)) {
-			unmap_frame(faulted_env->env_page_directory, fault_va);
+			//unmap_frame(faulted_env->env_page_directory, fault_va);
 			env_exit();
 		}
 	}
