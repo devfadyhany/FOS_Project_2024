@@ -248,6 +248,7 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 	struct FrameInfo * frame;
 	int i = 0;
 
+	acquire_spinlock(&AllShares.shareslock);
 	for (int i = 0; i < ROUNDUP(sharedObj->size, PAGE_SIZE) / PAGE_SIZE; i++) {
 		frame = sharedObj->framesStorage[i];
 		if (sharedObj->isWritable == 1) {
@@ -260,6 +261,8 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address) {
 	}
 
 	sharedObj->references++;
+	release_spinlock(&AllShares.shareslock);
+
 	int id = ((uint32) virtual_address & 0x7FFFFFFF);
 	return id;
 

@@ -340,18 +340,41 @@ void sys_init_queue(struct Env_Queue* queue){
 	return;
 }
 
-void sys_enqueue(struct Env_Queue* queue){
+void sys_enqueue(struct Env_Queue* queue, struct Env* env){
 
-	syscall(SYS_enqueue, (uint32)queue, 0, 0, 0, 0);
+	syscall(SYS_enqueue, (uint32)queue, (uint32)env, 0, 0, 0);
 	return;
 }
 
-void sys_dequeue(struct Env_Queue* queue, struct Env* env){
-	syscall(SYS_dequeue, (uint32)queue, (uint32)env, 0, 0, 0);
-	return;
+void* sys_dequeue(struct Env_Queue* queue){
+	return (void*)syscall(SYS_dequeue, (uint32)queue, 0, 0, 0, 0);
 }
 
 void sys_sched_insert_ready(struct Env* env){
 	syscall(SYS_sched_insert_ready, (uint32)env, 0, 0, 0, 0);
+	return;
+}
+
+void sys_block_process(struct Env* env){
+	syscall(SYS_block_process, (uint32)env, 0, 0, 0, 0);
+	return;
+}
+
+void sys_wf_semaphore(struct __semdata* sem){
+	syscall(SYS_wf_semaphore, (uint32)sem, 0, 0, 0, 0);
+	return;
+}
+
+void sys_sf_semaphore(struct __semdata* sem){
+	syscall(SYS_sf_semaphore, (uint32)sem, 0, 0, 0, 0);
+	return;
+}
+
+void sys_update_uheap_variables(int* num_of_process, int* last_free_place, int new_process_nums, int new_last_free_place){
+	syscall(SYS_update_uheap_variables, (uint32)num_of_process, (uint32)last_free_place, new_process_nums, new_last_free_place, 0);
+}
+
+void sys_env_set_priority(int32 envID, int priority){
+	syscall(SYS_env_set_priority, envID, priority, 0, 0, 0);
 	return;
 }

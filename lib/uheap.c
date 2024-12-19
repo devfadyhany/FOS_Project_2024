@@ -4,6 +4,8 @@ int num_of_processes_in_user = 0;
 uint32 last_free_place_user = 0;
 int first_time_allocating_user = 1;
 
+//uint32 allocating = 0;
+
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
@@ -148,10 +150,11 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	//==============================================================
 	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
 	// Write your code here, remove the panic and write your code
-//	panic("smalloc() is not implemented yet...!!");
+	//panic("smalloc() is not implemented yet...!!");
 	if (size > USER_HEAP_MAX - (uint32)(myEnv->Hard_limit + PAGE_SIZE)){
 		return NULL;
 	}
+
 	uint32 start_page = SearchUheapFF(size, 0);
 
 	if (start_page == 0){
@@ -165,8 +168,13 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	}
 
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+
+//	while(xchg(&allocating, 1) != 0);
+
 	num_of_processes_in_user++;
 	last_free_place_user = start_page + (num_of_required_pages * PAGE_SIZE);
+
+//	allocating = 0;
 
 	return (void*) start_page;
 

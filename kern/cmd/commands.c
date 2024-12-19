@@ -79,7 +79,7 @@ struct Command commands[] =
 		//********************************//
 		{ "rub", "reads block of bytes from specific location in given environment" ,command_readuserblock, 3},
 		//TODO: [PROJECT'24.MS3 - #07] [3] PRIORITY RR Scheduler - initialize command
-
+		{"schedPRIRR","Configures the Priority Round-Robin (PRIRR) scheduler",command_schedPRIRR,3},
 		//**************************************//
 		/* COMMANDS WITH AT LEAST ONE ARGUMENT */
 		//**************************************//
@@ -96,6 +96,17 @@ uint32 NUM_OF_COMMANDS  = (sizeof(commands)/sizeof(struct Command));
 
 
 /***** Implementations of basic kernel command prompt commands *****/
+int command_schedPRIRR(int number_of_arguments, char **arguments){
+
+	uint8 numOfPriorities=strtol(arguments[1],NULL,10);
+	uint8 quantum=strtol(arguments[2],NULL,10);
+	uint32 starvThresh=strtol(arguments[3],NULL,10);
+
+	sched_init_PRIRR(numOfPriorities,quantum,starvThresh);
+
+	return 0;
+}
+
 
 //print name and description of each command
 int command_help(int number_of_arguments, char **arguments)

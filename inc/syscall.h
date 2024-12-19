@@ -55,9 +55,14 @@ enum
 	SYS_check_marked_page,
 	SYS_check_shared_allocated_page,
 	SYS_init_queue,
+	SYS_wf_semaphore,
+	SYS_sf_semaphore,
 	SYS_enqueue,
 	SYS_dequeue,
 	SYS_sched_insert_ready,
+	SYS_block_process,
+	SYS_update_uheap_variables,
+	SYS_env_set_priority,
 	//=====================================================================
 	NSYSCALLS
 };
