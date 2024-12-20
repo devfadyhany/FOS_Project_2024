@@ -377,13 +377,13 @@ struct Env* fos_scheduler_PRIRR()
 
 	struct Env* next_env = NULL;
 	for (int i = 0; i < num_of_ready_queues; i++) {
-		if (queue_size(&ProcessQueues.env_ready_queues[i]) != 0) {
+		if (LIST_SIZE(&ProcessQueues.env_ready_queues[i]) != 0) {
 			next_env = dequeue(&ProcessQueues.env_ready_queues[i]);
-			kclock_set_quantum(quantums[0]);
 			break;
 		}
 	}
 
+	kclock_set_quantum(quantums[0]);
 	return next_env;
 }
 
@@ -399,7 +399,6 @@ void clock_interrupt_handler(struct Trapframe* tf)
 		//Your code is here
 		//Comment the following line
 		//panic("Not implemented yet");
-
 		if (ticks > starvThreshold){
 			for (int i = 1; i < num_of_ready_queues; i++)
 			{
@@ -410,13 +409,11 @@ void clock_interrupt_handler(struct Trapframe* tf)
 
 				LIST_FOREACH(env, queue)
 				{
-					env_set_priority(env->env_id, i-1);
+					remove_from_queue(queue, env);
 
-//					remove_from_queue(queue, env);
+					enqueue(&(ProcessQueues.env_ready_queues[i - 1]), env);
 
-//					enqueue(&(ProcessQueues.env_ready_queues[i - 1]), env);
-
-//					env->priority--;
+					env->priority--;
 				}
 
 				release_spinlock(&(ProcessQueues.qlock));
