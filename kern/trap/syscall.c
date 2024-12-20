@@ -364,24 +364,6 @@ void sys_init_queue(struct Env_Queue* queue){
 	return;
 }
 
-void sys_enqueue(struct Env_Queue* queue, struct Env* env){
-//	acquire_spinlock(&ProcessQueues.qlock);
-	enqueue(queue, env);
-	sched();
-//	release_spinlock(&ProcessQueues.qlock);
-
-	return;
-}
-
-void* sys_dequeue(struct Env_Queue* queue){
-	return dequeue(queue);
-}
-
-void sys_sched_insert_ready(struct Env* env){
-	env->env_status = ENV_READY;
-	return;
-}
-
 void sys_wf_semaphore(struct __semdata* sem){
 	acquire_spinlock(&ProcessQueues.qlock);
 
@@ -401,14 +383,6 @@ void sys_sf_semaphore(struct __semdata* sem){
 	sched_insert_ready(thisEnv);
 
 	release_spinlock(&ProcessQueues.qlock);
-
-	return;
-}
-
-void sys_block_process(struct Env* env){
-//	acquire_spinlock(&ProcessQueues.qlock);
-	env->env_status = ENV_BLOCKED;
-//	release_spinlock(&ProcessQueues.qlock);
 
 	return;
 }
@@ -587,31 +561,12 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4,
 		sys_init_queue((struct Env_Queue*) a1);
 		return 0;
 		break;
-	case SYS_enqueue:
-		sys_enqueue((struct Env_Queue*) a1, (struct Env*) a2);
-		return 0;
-		break;
-	case SYS_dequeue:
-		return (int)sys_dequeue((struct Env_Queue*) a1);
-		break;
-	case SYS_sched_insert_ready:
-		sys_sched_insert_ready((struct Env*) a1);
-		return 0;
-		break;
-	case SYS_block_process:
-		sys_block_process((struct Env*) a1);
-		return 0;
-		break;
 	case SYS_wf_semaphore:
 		sys_wf_semaphore((struct __semdata*) a1);
 		return 0;
 		break;
 	case SYS_sf_semaphore:
 		sys_sf_semaphore((struct __semdata*) a1);
-		return 0;
-		break;
-	case SYS_update_uheap_variables:
-		sys_update_uheap_variables((int*)a1, (int*)a2, a3, a4);
 		return 0;
 		break;
 	case SYS_env_set_priority:
