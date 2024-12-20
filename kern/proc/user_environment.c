@@ -463,23 +463,116 @@ void env_start(void)
 void env_free(struct Env *e)
 {
 	/*REMOVE THIS LINE BEFORE START CODING*/
-	return;
+	//return;
 	/**************************************/
 
 	//[PROJECT'24.MS3] BONUS [EXIT ENV] env_free
 	// your code is here, remove the panic and write your code
-	panic("env_free() is not implemented yet...!!");
+	//panic("env_free() is not implemented yet...!!");
+	// [1,2] remove all pages in the page working set & working set itself
+	int steps_counter = 1;
 
+	struct WorkingSetElement* ws_iterator;
+	LIST_FOREACH(ws_iterator, &e->page_WS_list){
+		env_page_ws_invalidate(e, ws_iterator->virtual_address);
+	}
+
+	if (LIST_SIZE(&e->page_WS_list) != 0){
+		panic("Failed to remove all pages in the page working set & working set itself!\n");
+	}
+
+	cprintf("\n\n[%d] remove all pages in the page working set & working set itself DONE\n", steps_counter);
+	steps_counter++;
+
+	// [3,4] remove all shared objects & all semaphores
+
+	if (LIST_SIZE(&AllShares.shares_list) != 0){
+		struct Share* share_iterator;
+		LIST_FOREACH(share_iterator, &AllShares.shares_list){
+			freeSharedObject(share_iterator->ID, share_iterator);
+		}
+
+		if (LIST_SIZE(&AllShares.shares_list) != 0){
+			panic("Failed to remove all shared objects & all semaphores!\n");
+		}
+
+		cprintf("[%d] remove all shared objects & all semaphores DONE\n", steps_counter);
+		steps_counter++;
+	}
+
+	// [5] remove all page tables in the entire user virtual memory
+	for (int i = 0; i < 131072; i++){
+		uint32 va = USER_HEAP_START + i * PAGE_SIZE;
+
+		uint32* ptr_page_table;
+		get_page_table(e->env_page_directory, va, &ptr_page_table);
+
+		if (ptr_page_table != NULL){
+			for (int j = 0; j < 1024; j++){
+				uint32 page_entry = ptr_page_table[j];
+
+				if (page_entry != 0){
+					unmap_frame(e->env_page_directory, va);
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < 1024; i++){
+		uint32 ptr_page_table = e->env_page_directory[i];
+
+		if (ptr_page_table != 0){
+			e->env_page_directory[i] = 0;
+			tlbflush();
+		}
+	}
+
+	for (int i = 0; i < 1024; i++){
+		uint32 ptr_page_table = e->env_page_directory[i];
+
+		if (ptr_page_table != 0){
+			panic("Failed to remove all page tables!\n");
+		}
+	}
+
+	cprintf("[%d] remove all page tables in the entire user virtual memory DONE\n", steps_counter);
+	steps_counter++;
+
+	// [6] remove directory table
+	kfree(e->env_page_directory);
+	e->env_page_directory = 0;
+
+	if (e->env_page_directory != NULL){
+		panic("Failed to remove directory table expected=%x, actual=%x\n", NULL, e->env_page_directory);
+	}
+
+	cprintf("[%d] remove directory table DONE\n", steps_counter);
+	steps_counter++;
+
+	// [7] remove user kernel stack
+	delete_user_kern_stack(e);
+
+	if (e->kstack != NULL){
+		panic("Failed to remove user kernel stack!\n");
+	}
+
+	cprintf("[%d] remove user kernel stack DONE\n", steps_counter);
+	steps_counter++;
 
 	// [9] remove this program from the page file
 	/*(ALREADY DONE for you)*/
 	pf_free_env(e); /*(ALREADY DONE for you)*/ // (removes all of the program pages from the page file)
+	cprintf("[%d] remove program from the page file DONE\n", steps_counter);
+	steps_counter++;
 	/*========================*/
 
 	// [10] free the environment (return it back to the free environment list)
 	/*(ALREADY DONE for you)*/
 	free_environment(e); /*(ALREADY DONE for you)*/ // (frees the environment (returns it back to the free environment list))
+	cprintf("[%d] free the environment (return it back to the free environment list) DONE\n", steps_counter);
 	/*========================*/
+
+	cprintf("Environment Has Been Free Successfully!\n");
 }
 
 //============================
@@ -902,8 +995,10 @@ void delete_user_kern_stack(struct Env* e)
 #if USE_KHEAP
 	//[PROJECT'24.MS3] BONUS
 	// Write your code here, remove the panic and write your code
-	panic("delete_user_kern_stack() is not implemented yet...!!");
-
+	//panic("delete_user_kern_stack() is not implemented yet...!!");
+//	pt_set_page_permissions(e->env_page_directory, (uint32)e->kstack, PERM_PRESENT, 0);
+	kfree(e->kstack);
+	e->kstack = 0;
 	//Delete the allocated space for the user kernel stack of this process "e"
 	//remember to delete the bottom GUARD PAGE (i.e. not mapped)
 #else

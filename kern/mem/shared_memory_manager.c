@@ -323,6 +323,8 @@ int freeSharedObject(int32 sharedObjectID, void *startVA) {
 		return E_SHARED_MEM_NOT_EXISTS;
 	}
 
+	acquire_spinlock(&AllShares.shareslock);
+
 	for (int i = 0; i < ROUNDUP(share->size, PAGE_SIZE) / PAGE_SIZE; i++) {
 		uint32 frame_va = va + (i * PAGE_SIZE);
 		unmap_frame(myenv->env_page_directory, frame_va);
@@ -347,6 +349,8 @@ int freeSharedObject(int32 sharedObjectID, void *startVA) {
 	}
 	share->framesStorage[0]->process_num_of_pages = 0;
 	share->references--;
+
+	release_spinlock(&AllShares.shareslock);
 
 	if (share->references == 0) {
 		free_share(share);
