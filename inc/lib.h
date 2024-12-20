@@ -85,6 +85,16 @@ void 	sys_set_uheap_strategy(uint32 heapStrategy);
 int 	sys_pf_calculate_allocated_pages(void);
 
 //Semaphores
+void 	sys_init_queue(struct Env_Queue* queue);
+void	sys_enqueue(struct Env_Queue* queue, struct Env* env);
+void* 	sys_dequeue(struct Env_Queue* queue);
+void 	sys_sched_insert_ready(struct Env* env);
+void	sys_block_process(struct Env* env);
+void 	sys_wf_semaphore(struct __semdata* sem);
+void 	sys_sf_semaphore(struct __semdata* sem);
+
+//Scheduler
+void 	sys_env_set_priority(int32 envID, int priority);
 
 
 //Sharing

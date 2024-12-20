@@ -48,4 +48,6 @@ uint32* Break;
 
 uint32* Hard_limit;
 
+//uint32 kernel_lock;
+
 #endif // FOS_KERN_KHEAP_H_

@@ -27,6 +27,7 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	Start = (uint32*) daStart;
 	Break = (uint32*) (daStart + initSizeToAllocate);
 	Hard_limit = (uint32*) daLimit;
+//	kernel_lock = 0;
 	for(uint32 i = daStart; i < (uint32)Break; i += PAGE_SIZE){
 		struct FrameInfo * frame_info = NULL;
 		allocate_frame(&frame_info);
@@ -155,6 +156,8 @@ void* kmalloc(unsigned int size)
 			struct FrameInfo * iterator = NULL;
 			uint32 current_page_address;
 
+//			while(xchg(&(kernel_lock), 1) != 0);
+
 			for (int i = 0; i < num_of_required_pages; i++){
 				allocate_frame(&iterator);
 				current_page_address = start_page + (i * PAGE_SIZE);
@@ -171,8 +174,9 @@ void* kmalloc(unsigned int size)
 			}
 
 			num_of_processes_in_kernel++;
-
 			last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
+
+//			kernel_lock = 0;
 
 			return (void*)start_page;
 
@@ -208,6 +212,8 @@ void kfree(void* virtual_address)
         uint32* ptr_page_table = NULL;
         struct FrameInfo* frame = NULL;
 
+//		while(xchg(&(kernel_lock), 1) != 0);
+
         for (int i = 0; i < num_of_pages; i++) {
 
             frame = get_frame_info(ptr_page_directory, address, &ptr_page_table);
@@ -226,6 +232,8 @@ void kfree(void* virtual_address)
         num_of_processes_in_kernel--;
         last_free_place = 0;
         first_time_allocating = 0;
+
+//        kernel_lock = 0;
     }
     else {
 //         Invalid address, should panic

@@ -323,6 +323,16 @@ int sys_check_marked_page(uint32 virtual_address, int* numOfMarkedPagesAfter) {
 	return check_marked_page(cur_env, virtual_address, numOfMarkedPagesAfter);
 }
 
+void sys_update_uheap_variables(int* num_of_process, int* last_free_place, int new_process_nums, int new_last_free_place){
+	acquire_spinlock(&ProcessQueues.qlock);
+
+	*num_of_process = new_process_nums;
+	*last_free_place = new_last_free_place;
+
+	release_spinlock(&ProcessQueues.qlock);
+	return;
+}
+
 void sys_allocate_chunk(uint32 virtual_address, uint32 size, uint32 perms) {
 	//TODO: [PROJECT'24.MS1 - #03] [2] SYSTEM CALLS - Params Validation
 
@@ -349,6 +359,68 @@ void sys_set_uheap_strategy(uint32 heapStrategy) {
 /* SEMAPHORES SYSTEM CALLS */
 /*******************************/
 //[PROJECT'24.MS3] ADD SUITABLE CODE HERE
+void sys_init_queue(struct Env_Queue* queue){
+	init_queue(queue);
+	return;
+}
+
+void sys_enqueue(struct Env_Queue* queue, struct Env* env){
+//	acquire_spinlock(&ProcessQueues.qlock);
+	enqueue(queue, env);
+	sched();
+//	release_spinlock(&ProcessQueues.qlock);
+
+	return;
+}
+
+void* sys_dequeue(struct Env_Queue* queue){
+	return dequeue(queue);
+}
+
+void sys_sched_insert_ready(struct Env* env){
+	env->env_status = ENV_READY;
+	return;
+}
+
+void sys_wf_semaphore(struct __semdata* sem){
+	acquire_spinlock(&ProcessQueues.qlock);
+
+	enqueue(&sem->queue, cur_env);
+	sem->lock = 0;
+	cur_env->env_status = ENV_BLOCKED;
+	sched();
+
+	release_spinlock(&ProcessQueues.qlock);
+	return;
+}
+
+void sys_sf_semaphore(struct __semdata* sem){
+	acquire_spinlock(&ProcessQueues.qlock);
+
+	struct Env* thisEnv = dequeue(&sem->queue);
+	sched_insert_ready(thisEnv);
+
+	release_spinlock(&ProcessQueues.qlock);
+
+	return;
+}
+
+void sys_block_process(struct Env* env){
+//	acquire_spinlock(&ProcessQueues.qlock);
+	env->env_status = ENV_BLOCKED;
+//	release_spinlock(&ProcessQueues.qlock);
+
+	return;
+}
+
+/*******************************/
+/* SCHEDULERS SYSTEM CALLS */
+/*******************************/
+void sys_env_set_priority(int32 envID, int priority){
+	env_set_priority(envID, priority);
+	return;
+}
+
 /*******************************/
 /* SHARED MEMORY SYSTEM CALLS */
 /*******************************/
@@ -511,6 +583,40 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4,
 	case SYS_check_shared_allocated_page:
 		return (int) sys_check_shared_allocated_page(a1,(int*)a2, (int*)a3);
 		break;
+	case SYS_init_queue:
+		sys_init_queue((struct Env_Queue*) a1);
+		return 0;
+		break;
+	case SYS_enqueue:
+		sys_enqueue((struct Env_Queue*) a1, (struct Env*) a2);
+		return 0;
+		break;
+	case SYS_dequeue:
+		return (int)sys_dequeue((struct Env_Queue*) a1);
+		break;
+	case SYS_sched_insert_ready:
+		sys_sched_insert_ready((struct Env*) a1);
+		return 0;
+		break;
+	case SYS_block_process:
+		sys_block_process((struct Env*) a1);
+		return 0;
+		break;
+	case SYS_wf_semaphore:
+		sys_wf_semaphore((struct __semdata*) a1);
+		return 0;
+		break;
+	case SYS_sf_semaphore:
+		sys_sf_semaphore((struct __semdata*) a1);
+		return 0;
+		break;
+	case SYS_update_uheap_variables:
+		sys_update_uheap_variables((int*)a1, (int*)a2, a3, a4);
+		return 0;
+		break;
+	case SYS_env_set_priority:
+		sys_env_set_priority(a1, a2);
+		return 0;
 		//======================================================================
 	case SYS_cputs:
 		sys_cputs((const char*) a1, a2, (uint8) a3);

@@ -249,15 +249,33 @@ void sched_init_PRIRR(uint8 numOfPriorities, uint8 quantum, uint32 starvThresh)
 	//TODO: [PROJECT'24.MS3 - #07] [3] PRIORITY RR Scheduler - sched_init_PRIRR
 	//Your code is here
 	//Comment the following line
-	panic("Not implemented yet");
+	//panic("Not implemented yet");
+	ProcessQueues.env_ready_queues = (struct Env_Queue *)kmalloc(numOfPriorities * sizeof(struct Env_Queue));
 
+	if (ProcessQueues.env_ready_queues == NULL) {
+		panic("Failed to allocate memory for ready queues");
+	}
 
+//	quantums = (uint8 *)kmalloc(numOfPriorities * sizeof(uint8));
+//
+//	if (quantums == NULL) {
+//		kfree(ProcessQueues.env_ready_queues);
+//		panic("Failed to allocate memory for quantum array");
+//	}
 
+	for (int i = 0; i < numOfPriorities; i++) {
+		LIST_INIT(&ProcessQueues.env_ready_queues[i]);
+	}
 
+//	for (int i = 0; i < numOfPriorities; i++) {
+		quantums[0] = quantum;
+//	}
 
+//	kclock_set_quantum(quantums[0]);
 
+	num_of_ready_queues = numOfPriorities;
 
-
+	sched_set_starv_thresh(starvThresh);
 
 	//=========================================
 	//DON'T CHANGE THESE LINES=================
@@ -350,7 +368,23 @@ struct Env* fos_scheduler_PRIRR()
 	//TODO: [PROJECT'24.MS3 - #08] [3] PRIORITY RR Scheduler - fos_scheduler_PRIRR
 	//Your code is here
 	//Comment the following line
-	panic("Not implemented yet");
+	//panic("Not implemented yet");
+	struct Env* myenv = get_cpu_proc();
+	if (myenv != NULL)
+	{
+		sched_insert_ready(myenv);
+	}
+
+	struct Env* next_env = NULL;
+	for (int i = 0; i < num_of_ready_queues; i++) {
+		if (queue_size(&ProcessQueues.env_ready_queues[i]) != 0) {
+			next_env = dequeue(&ProcessQueues.env_ready_queues[i]);
+			kclock_set_quantum(quantums[0]);
+			break;
+		}
+	}
+
+	return next_env;
 }
 
 //========================================
@@ -364,9 +398,33 @@ void clock_interrupt_handler(struct Trapframe* tf)
 		//TODO: [PROJECT'24.MS3 - #09] [3] PRIORITY RR Scheduler - clock_interrupt_handler
 		//Your code is here
 		//Comment the following line
-		panic("Not implemented yet");
-	}
+		//panic("Not implemented yet");
 
+		if (ticks > starvThreshold){
+			for (int i = 1; i < num_of_ready_queues; i++)
+			{
+				struct Env_Queue* queue = &(ProcessQueues.env_ready_queues[i]);
+				struct Env* env;
+
+				acquire_spinlock(&(ProcessQueues.qlock));
+
+				LIST_FOREACH(env, queue)
+				{
+					env_set_priority(env->env_id, i-1);
+
+//					remove_from_queue(queue, env);
+
+//					enqueue(&(ProcessQueues.env_ready_queues[i - 1]), env);
+
+//					env->priority--;
+				}
+
+				release_spinlock(&(ProcessQueues.qlock));
+			}
+
+		}
+
+	}
 
 
 	/********DON'T CHANGE THESE LINES***********/
