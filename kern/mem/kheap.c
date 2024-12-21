@@ -61,7 +61,6 @@ void* sbrk(int numOfPages)
 	//[PROJECT'24.MS2] Implement this function
 	// Write your code here, remove the panic and write your code
 
-
 	uint32 * check_max = (uint32 *)((char *)Break + ((int)(numOfPages)*(PAGE_SIZE )));
 	uint32 * old_break=Break;
      if(check_max>Hard_limit || numOfPages<0)//Break
@@ -157,6 +156,7 @@ void* kmalloc(unsigned int size)
 			uint32 current_page_address;
 
 //			while(xchg(&(kernel_lock), 1) != 0);
+//			acquire_spinlock(&AllShares.shareslock);
 
 			for (int i = 0; i < num_of_required_pages; i++){
 				allocate_frame(&iterator);
@@ -176,6 +176,7 @@ void* kmalloc(unsigned int size)
 			num_of_processes_in_kernel++;
 			last_free_place = start_page + (num_of_required_pages * PAGE_SIZE);
 
+//			release_spinlock(&AllShares.shareslock);
 //			kernel_lock = 0;
 
 			return (void*)start_page;
@@ -213,6 +214,7 @@ void kfree(void* virtual_address)
         struct FrameInfo* frame = NULL;
 
 //		while(xchg(&(kernel_lock), 1) != 0);
+//        acquire_spinlock(&kernel_lock);
 
         for (int i = 0; i < num_of_pages; i++) {
 
@@ -233,6 +235,7 @@ void kfree(void* virtual_address)
         last_free_place = 0;
         first_time_allocating = 0;
 
+//        release_spinlock(&kernel_lock);
 //        kernel_lock = 0;
     }
     else {

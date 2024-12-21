@@ -34,7 +34,6 @@ _main(void)
 			strcconcat(initname, index, name);
 			vars[s] = smalloc(name, PAGE_SIZE, 1);
 			*vars[s] = s;
-			cprintf("%d\n", s);
 		}
 		for (int s = 0; s < NUM_OF_OBJS; ++s)
 		{
