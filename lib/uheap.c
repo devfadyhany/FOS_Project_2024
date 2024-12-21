@@ -155,11 +155,14 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 		return NULL;
 	}
 
+
 	uint32 start_page = SearchUheapFF(size, 0);
 
 	if (start_page == 0){
 		return NULL;
 	}
+
+//	while(xchg(&allocating, 1) != 0);
 
 	int res = sys_createSharedObject(sharedVarName, size, isWritable,(void*) start_page);
 
@@ -168,8 +171,6 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable) {
 	}
 
 	int num_of_required_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-
-//	while(xchg(&allocating, 1) != 0);
 
 	num_of_processes_in_user++;
 	last_free_place_user = start_page + (num_of_required_pages * PAGE_SIZE);
@@ -250,7 +251,7 @@ void sfree(void* virtual_address) {
 	}
 	int num_of_pages = 0;
 	int sharedObjectID = 0;
-	int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
+//	int start_page_index = (va - USER_HEAP_START) / PAGE_SIZE;
 
 	int page_is_marked = sys_check_shared_allocated_page(va, &num_of_pages, &sharedObjectID);
 
@@ -260,7 +261,7 @@ void sfree(void* virtual_address) {
 
 	int result = sys_freeSharedObject(sharedObjectID, (void*)va);
 	if (result != 0) {
-		panic("Failed to free shared object in the kernel");
+		panic("Failed to free shared object in the kernel\n");
 		return;
 	}
 	num_of_processes_in_user--;

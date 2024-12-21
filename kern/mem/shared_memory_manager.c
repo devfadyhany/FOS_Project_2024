@@ -90,6 +90,9 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size,
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
 	//panic("create_share is not implemented yet");
 	//Your Code is Here...
+
+	acquire_spinlock(&AllShares.shareslock);
+
 	struct Share* newShare = (struct Share*) kmalloc(sizeof(struct Share));
 
 	if (newShare == NULL) {
@@ -110,9 +113,11 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size,
 	if (newShare->framesStorage == NULL) {
 		// Undo
 		kfree(newShare);
+		release_spinlock(&AllShares.shareslock);
 		return NULL;
 	}
 
+	release_spinlock(&AllShares.shareslock);
 	return newShare;
 }
 
@@ -207,6 +212,9 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size,
 int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages, int* sharedObjectId) {
 
 	struct Env* myenv = get_cpu_proc();
+
+	acquire_spinlock(&AllShares.shareslock);
+
 	uint32* ptr_page_table = NULL;
 	uint32 va_permissions = pt_get_page_permissions(myenv->env_page_directory, virtual_address);
 
@@ -217,14 +225,16 @@ int check_shared_allocated_page(uint32 virtual_address, int* numOfAllocatedPages
 		if(sharedObjectId != NULL){
 			*sharedObjectId = frame->shared_object_id;
 		}
+		release_spinlock(&AllShares.shareslock);
 		return 1;
 	}
 	if ((va_permissions & PERM_MARKED) && (va_permissions != 0xffffffff)) {
 		*numOfAllocatedPages = 0;
+		release_spinlock(&AllShares.shareslock);
 		return 1;
 	}
 
-
+	release_spinlock(&AllShares.shareslock);
 	return 0;
 }
 
