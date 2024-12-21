@@ -477,16 +477,16 @@ void env_free(struct Env *e)
 		unmap_frame(e->env_page_directory, ws_iterator->virtual_address);
 	}
 
+
 	// [2] remove working set itself
 	LIST_FOREACH(ws_iterator, &e->page_WS_list){
 		uint32* working_set_page_table;
-		get_page_table(e->env_page_directory, ws_iterator->virtual_address, &working_set_page_table);
+		get_page_table(e->env_page_directory, ws_iterator->virtual_address, & working_set_page_table);
 
 		if (working_set_page_table != NULL){
 			for (int i = 0; i < 1024; i++){
 				unmap_frame(e->env_page_directory, working_set_page_table[i]);
 			}
-
 			kfree(working_set_page_table);
 		}
 
@@ -501,11 +501,20 @@ void env_free(struct Env *e)
 	cprintf("\n\n[%d] remove all pages in the page working set & working set itself DONE\n", steps_counter);
 	steps_counter++;
 
+	for (uint32 va = USER_HEAP_START; va < USER_HEAP_MAX; va += PAGE_SIZE){
+		uint32* ptr_page_table;
+		if (get_frame_info(e->env_page_directory, va, &ptr_page_table) != NULL){
+			unmap_frame(e->env_page_directory, va);
+		}
+	}
+
+
 	// [3,4] remove all shared objects & all semaphores
 	if (LIST_SIZE(&AllShares.shares_list) != 0){
 		struct Share* share_iterator;
 		LIST_FOREACH(share_iterator, &AllShares.shares_list){
-			freeSharedObject(share_iterator->ID, share_iterator);
+			LIST_REMOVE(&AllShares.shares_list, share_iterator);
+			kfree(share_iterator);
 		}
 
 		if (LIST_SIZE(&AllShares.shares_list) != 0){

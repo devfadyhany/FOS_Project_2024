@@ -96,6 +96,7 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size,
 	struct Share* newShare = (struct Share*) kmalloc(sizeof(struct Share));
 
 	if (newShare == NULL) {
+		release_spinlock(&AllShares.shareslock);
 		return NULL;
 	}
 
